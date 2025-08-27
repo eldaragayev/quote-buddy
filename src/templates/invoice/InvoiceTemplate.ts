@@ -1,5 +1,5 @@
 import { PDFGenerationOptions, PDFError, PDFErrorType } from "../../types/pdf";
-import { formatCurrency, formatDate } from "../../utils/formatters";
+import { formatCurrency, formatDate, getDueDateFromOption } from "../../utils/formatters";
 import { calculateInvoiceTotal } from "../../utils/calculations";
 
 export class InvoiceTemplate {
@@ -21,8 +21,11 @@ export class InvoiceTemplate {
 
       // Format dates
       const issuedDate = formatDate(invoice.issued_date);
-      const dueDate = invoice.due_date
+      const calculatedDueDateObj = getDueDateFromOption(invoice.due_option, new Date(invoice.issued_date));
+      const dueDate = invoice.due_date 
         ? formatDate(invoice.due_date)
+        : calculatedDueDateObj 
+        ? formatDate(calculatedDueDateObj)
         : "Upon receipt";
 
       // Generate the complete HTML
@@ -81,9 +84,15 @@ export class InvoiceTemplate {
                 String(invoice.number || "")
               )}</div>
             </div>
-            <div class="invoice-date">
-              <div class="date-label">Date Issued</div>
-              <div class="date-value">${issuedDate}</div>
+            <div class="invoice-dates">
+              <div class="invoice-date">
+                <div class="date-label">Date Issued</div>
+                <div class="date-value">${issuedDate}</div>
+              </div>
+              <div class="due-date">
+                <div class="date-label">Due Date</div>
+                <div class="date-value">${dueDate}</div>
+              </div>
             </div>
           </div>
 
@@ -318,7 +327,6 @@ export class InvoiceTemplate {
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        min-height: 100vh;
         padding: 20px;
         box-sizing: border-box;
       }
@@ -326,7 +334,6 @@ export class InvoiceTemplate {
       .invoice {
         width: 210mm;
         max-width: 210mm;
-        min-height: 297mm;
         margin: 0 auto;
         background: white;
         position: relative;
@@ -370,21 +377,33 @@ export class InvoiceTemplate {
         font-weight: 400;
       }
       
-      .invoice-date {
+      .invoice-dates {
         text-align: right;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      
+      .invoice-date, .due-date {
+        display: flex;
+        flex-direction: column;
       }
       
       .date-label {
         font-size: 14px;
         color: #666666;
         margin-bottom: 4px;
-        font-weight: 400;
+        font-weight: 500;
       }
       
       .date-value {
         font-size: 18px;
         color: #1d1d1f;
         font-weight: 600;
+      }
+      
+      .due-date .date-value {
+        color: #007AFF;
       }
       
       /* FROM and TO Section */
@@ -534,6 +553,7 @@ export class InvoiceTemplate {
       /* Items Table - Apple-style clean table */
       .items-section {
         margin-bottom: 28px;
+        page-break-inside: auto;
       }
       
       .items-table {
@@ -604,6 +624,7 @@ export class InvoiceTemplate {
         display: flex;
         justify-content: flex-end;
         margin-bottom: 24px;
+        page-break-inside: avoid;
       }
       
       .summary-table {
@@ -661,6 +682,7 @@ export class InvoiceTemplate {
       .notes-section {
         margin-bottom: 0;
         page-break-inside: avoid;
+        page-break-before: auto;
       }
       
       .notes, .terms {
@@ -696,6 +718,7 @@ export class InvoiceTemplate {
           padding: 0;
           margin: 0;
           font-size: 12px;
+          display: block;
         }
         
         .invoice {
@@ -703,7 +726,8 @@ export class InvoiceTemplate {
           border-radius: 0;
           margin: 0;
           padding: 15mm;
-          padding-bottom: 30mm;
+          width: 100%;
+          max-width: none;
         }
 
         
@@ -726,6 +750,11 @@ export class InvoiceTemplate {
         
         .items-table tbody tr {
           page-break-inside: avoid;
+          page-break-after: auto;
+        }
+        
+        .items-section {
+          page-break-inside: auto;
         }
         
         .items-table thead th {
@@ -776,8 +805,15 @@ export class InvoiceTemplate {
           margin-bottom: 32px;
         }
         
-        .invoice-date {
+        .invoice-dates {
           text-align: left;
+          flex-direction: row;
+          gap: 20px;
+          justify-content: space-between;
+        }
+        
+        .invoice-date, .due-date {
+          flex: 1;
         }
         
         .from-to-section {

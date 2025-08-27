@@ -432,7 +432,10 @@ export const InvoiceDetailScreen = () => {
     setGeneratingPDF(true);
 
     try {
-      // Create invoice object for PDF generation
+      // Save changes first
+      await saveChanges();
+
+      // Create invoice object for PDF generation  
       const invoiceData = {
         id: invoiceId,
         issuer_id: issuer.id!,
@@ -474,6 +477,65 @@ export const InvoiceDetailScreen = () => {
       Alert.alert("Error", errorMessage);
     } finally {
       setGeneratingPDF(false);
+    }
+  };
+
+  const saveChanges = async () => {
+    if (!issuer || !client || items.length === 0) {
+      throw new Error("Please complete all invoice details");
+    }
+
+    const invoiceData: Omit<Invoice, "id"> = {
+      issuer_id: issuer.id!,
+      client_id: client.id!,
+      number: invoiceNumber,
+      issued_date: issuedDate.toISOString().split("T")[0],
+      due_option: dueOption,
+      due_date: dueDate ? dueDate.toISOString().split("T")[0] : undefined,
+      currency_code: currency,
+      status: isEditMode ? invoiceStatus : "unpaid",
+      discount_type: discountType ?? undefined,
+      discount_value: discountValue || undefined,
+      tax_id: tax?.id,
+      public_notes: publicNotes || undefined,
+      terms: terms || undefined,
+      po_number: poNumber || undefined,
+    };
+
+    if (isEditMode && invoiceId) {
+      await InvoiceModel.update(invoiceId, invoiceData);
+
+      // Delete existing items and re-add them
+      const existingItems = await InvoiceModel.getItemsByInvoiceId(invoiceId);
+      for (const item of existingItems) {
+        if (item.id) {
+          await InvoiceModel.deleteItem(item.id);
+        }
+      }
+
+      // Add updated items
+      for (let i = 0; i < items.length; i++) {
+        await InvoiceModel.addItem({
+          invoice_id: invoiceId,
+          item_id: items[i].item_id,
+          name: items[i].name,
+          qty: items[i].qty,
+          rate: items[i].rate,
+          position: i,
+        });
+      }
+    } else {
+      const newId = await InvoiceModel.create(invoiceData);
+      for (let i = 0; i < items.length; i++) {
+        await InvoiceModel.addItem({
+          invoice_id: newId,
+          item_id: items[i].item_id,
+          name: items[i].name,
+          qty: items[i].qty,
+          rate: items[i].rate,
+          position: i,
+        });
+      }
     }
   };
 
@@ -756,10 +818,70 @@ export const InvoiceDetailScreen = () => {
                 </Text>
               </View>
 
+              <View style={styles.discountSection}>
+                <Text style={styles.discountLabel}>Discount</Text>
+                <View style={styles.discountControls}>
+                  <View style={styles.discountTypeSelector}>
+                    <TouchableOpacity
+                      style={[
+                        styles.discountTypeButton,
+                        discountType === 'percent' && styles.discountTypeButtonActive
+                      ]}
+                      onPress={() => setDiscountType('percent')}
+                    >
+                      <Text style={[
+                        styles.discountTypeText,
+                        discountType === 'percent' && styles.discountTypeTextActive
+                      ]}>%</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.discountTypeButton,
+                        discountType === 'fixed' && styles.discountTypeButtonActive
+                      ]}
+                      onPress={() => setDiscountType('fixed')}
+                    >
+                      <Text style={[
+                        styles.discountTypeText,
+                        discountType === 'fixed' && styles.discountTypeTextActive
+                      ]}>{currency}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.discountTypeButton,
+                        !discountType && styles.discountTypeButtonActive
+                      ]}
+                      onPress={() => {
+                        setDiscountType(null);
+                        setDiscountValue(0);
+                      }}
+                    >
+                      <Text style={[
+                        styles.discountTypeText,
+                        !discountType && styles.discountTypeTextActive
+                      ]}>None</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {discountType && (
+                    <TextInput
+                      style={styles.discountInput}
+                      value={discountValue > 0 ? discountValue.toString() : ''}
+                      onChangeText={(text) => {
+                        const value = parseFloat(text) || 0;
+                        setDiscountValue(value);
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={Colors.textLight}
+                    />
+                  )}
+                </View>
+              </View>
+
               {calculation.discountAmount > 0 && (
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Discount</Text>
-                  <Text style={styles.summaryValue}>
+                  <Text style={styles.summaryLabel}>Discount Applied</Text>
+                  <Text style={[styles.summaryValue, { color: Colors.danger }]}>
                     -{formatCurrency(calculation.discountAmount, currency)}
                   </Text>
                 </View>
@@ -879,7 +1001,7 @@ export const InvoiceDetailScreen = () => {
                 color={Colors.text}
               />
               <Text style={styles.secondaryButtonText}>
-                {generatingPDF ? "Generating..." : "Generate PDF"}
+                {generatingPDF ? "Saving & Generating..." : "Save & Generate PDF"}
               </Text>
             </TouchableOpacity>
           )}
@@ -1273,5 +1395,57 @@ const styles = StyleSheet.create({
   },
   successButton: {
     backgroundColor: "#34C759", // Green color
+  },
+  discountSection: {
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  discountLabel: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+  },
+  discountControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  discountTypeSelector: {
+    flexDirection: 'row',
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.md,
+    padding: 2,
+  },
+  discountTypeButton: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  discountTypeButtonActive: {
+    backgroundColor: Colors.black,
+  },
+  discountTypeText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textSecondary,
+  },
+  discountTypeTextActive: {
+    color: Colors.white,
+  },
+  discountInput: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: Typography.sizes.base,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    textAlign: 'right',
   },
 });

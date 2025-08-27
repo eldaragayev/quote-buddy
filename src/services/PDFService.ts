@@ -21,17 +21,47 @@ export class PDFService {
   }
 
   /**
-   * Generate HTML for invoice preview
+   * Generate PDF as base64 data URI for WebView preview
    */
-  async generateInvoiceHTML(options: PDFGenerationOptions): Promise<string> {
+  async generateInvoicePDFPreview(
+    options: PDFGenerationOptions
+  ): Promise<string> {
     try {
+      console.log("PDFService: Starting PDF preview generation");
+
       // Validate required data
       this.validateOptions(options);
 
       // Generate HTML from template
-      return await this.template.generate(options);
+      const html = await this.template.generate(options);
+      console.log("PDFService: HTML generated, length:", html.length);
+
+      // Generate PDF file
+      const { uri, base64 } = await Print.printToFileAsync({
+        html,
+        base64: true,
+      });
+
+      console.log("PDFService: PDF file generated:", uri);
+
+      // Clean up temp file
+      try {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch (cleanupError) {
+        console.warn("Failed to cleanup temp file:", cleanupError);
+      }
+
+      // Return base64 data URI for WebView
+      if (!base64) {
+        throw new PDFError(
+          PDFErrorType.GENERATION_FAILED,
+          "PDF base64 data not available"
+        );
+      }
+
+      return `data:application/pdf;base64,${base64}`;
     } catch (error) {
-      console.error("HTML generation failed:", error);
+      console.error("PDF preview generation failed:", error);
 
       if (error instanceof PDFError) {
         throw error;
@@ -39,7 +69,7 @@ export class PDFService {
 
       throw new PDFError(
         PDFErrorType.GENERATION_FAILED,
-        `Failed to generate HTML invoice: ${
+        `Failed to generate PDF preview: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
@@ -82,70 +112,6 @@ export class PDFService {
       throw new PDFError(
         PDFErrorType.GENERATION_FAILED,
         `Failed to generate PDF invoice: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  }
-
-  /**
-   * Generate PDF as base64 data URI for preview in WebView
-   */
-  async generateInvoicePDFPreview(
-    options: PDFGenerationOptions
-  ): Promise<string> {
-    try {
-      console.log("PDFService: Starting PDF preview generation");
-
-      // Validate required data
-      this.validateOptions(options);
-
-      // Generate HTML from template
-      const html = await this.template.generate(options);
-      console.log("PDFService: HTML generated, length:", html.length);
-
-      // Step 1: Generate PDF as FILE using basic call (no custom parameters)
-      console.log("PDFService: Generating PDF file...");
-      const { uri } = await Print.printToFileAsync({
-        html,
-      });
-
-      console.log("PDFService: PDF file generated:", uri);
-
-      // Step 2: Read the file and convert to base64 manually
-      console.log("PDFService: Reading file and converting to base64...");
-      const base64Data = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      console.log(
-        "PDFService: Base64 conversion successful, length:",
-        base64Data.length
-      );
-
-      // Step 3: Clean up the temporary file
-      try {
-        await FileSystem.deleteAsync(uri, { idempotent: true });
-        console.log("PDFService: Temporary file cleaned up");
-      } catch (cleanupError) {
-        console.warn(
-          "PDFService: Failed to cleanup temporary file:",
-          cleanupError
-        );
-      }
-
-      // Return as data URI for WebView
-      return `data:application/pdf;base64,${base64Data}`;
-    } catch (error) {
-      console.error("PDFService: PDF preview generation failed:", error);
-
-      if (error instanceof PDFError) {
-        throw error;
-      }
-
-      throw new PDFError(
-        PDFErrorType.GENERATION_FAILED,
-        `Failed to generate PDF preview: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
@@ -229,7 +195,6 @@ export class PDFService {
       // Keep only the last 10 PDF files
       if (pdfFiles.length > 10) {
         const filesToDelete = pdfFiles.slice(0, pdfFiles.length - 10);
-
         for (const file of filesToDelete) {
           await FileSystem.deleteAsync(`${documentDir}${file}`, {
             idempotent: true,
@@ -238,6 +203,19 @@ export class PDFService {
       }
     } catch (error) {
       console.warn("Cleanup failed:", error);
+      // Don't throw error for cleanup failures
+    }
+  }
+
+  /**
+   * Clean up a specific preview file
+   */
+  async cleanupPreviewFile(uri: string): Promise<void> {
+    try {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+      console.log("Preview file cleaned up:", uri);
+    } catch (error) {
+      console.warn("Failed to cleanup preview file:", error);
       // Don't throw error for cleanup failures
     }
   }

@@ -44,91 +44,40 @@ export const InvoicePreviewScreen = () => {
 
   const [pdfUri, setPdfUri] = useState<string>("");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [isLoadingPDF, setIsLoadingPDF] = useState(false);
-  const [viewMode, setViewMode] = useState<"html" | "pdf">("html"); // Start with HTML as it's more reliable
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   useEffect(() => {
-    // Start with HTML preview as it's more reliable
+    // Generate PDF preview on load
     const loadContent = async () => {
       try {
-        await loadHTMLContent();
+        await loadPDFPreview();
       } catch (error) {
-        console.error("Failed to load content in useEffect:", error);
+        console.error("Failed to load PDF preview in useEffect:", error);
       }
     };
 
     loadContent();
   }, []);
 
-  const loadHTMLContent = async () => {
-    setIsLoadingPDF(true);
-    try {
-      console.log("Generating HTML preview...");
-      const html = await pdfService.generateInvoiceHTML(invoiceData);
-      console.log("HTML generated successfully, length:", html.length);
-      setPdfUri(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-      setViewMode("html");
-    } catch (error) {
-      console.error("HTML preview generation failed:", error);
-      Alert.alert("Error", "Failed to generate invoice preview");
-    } finally {
-      setIsLoadingPDF(false);
-    }
-  };
-
-  const loadPDFContent = async () => {
-    setIsLoadingPDF(true);
+  const loadPDFPreview = async () => {
+    setIsLoadingPreview(true);
     try {
       console.log("Generating PDF preview...");
-      const pdfPreview = await pdfService.generateInvoicePDFPreview(
+      const pdfDataUri = await pdfService.generateInvoicePDFPreview(
         invoiceData
       );
-      console.log(
-        "PDF preview generated successfully, length:",
-        pdfPreview.length
-      );
-      setPdfUri(pdfPreview);
-      setViewMode("pdf");
+      console.log("PDF preview generated successfully");
+      setPdfUri(pdfDataUri);
     } catch (error) {
       console.error("PDF preview generation failed:", error);
-      console.error("Full error details:", error);
-
-      // Fallback to HTML preview
-      try {
-        console.log("Falling back to HTML preview...");
-        const html = await pdfService.generateInvoiceHTML(invoiceData);
-        setPdfUri(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-        setViewMode("html");
-        Alert.alert(
-          "PDF Unavailable",
-          "Showing HTML preview instead. PDF generation is not working on this device."
-        );
-      } catch (htmlError) {
-        console.error("HTML fallback also failed:", htmlError);
-        Alert.alert(
-          "Error",
-          `Preview failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
+      Alert.alert(
+        "PDF Preview Failed",
+        `Unable to generate PDF preview: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     } finally {
-      setIsLoadingPDF(false);
-    }
-  };
-
-  const toggleViewMode = async () => {
-    try {
-      if (viewMode === "html") {
-        console.log("User requested PDF view...");
-        await loadPDFContent();
-      } else {
-        console.log("User requested HTML view...");
-        await loadHTMLContent();
-      }
-    } catch (error) {
-      console.error("Error in toggleViewMode:", error);
-      Alert.alert("Error", "Failed to switch view mode");
+      setIsLoadingPreview(false);
     }
   };
 
@@ -148,16 +97,6 @@ export const InvoicePreviewScreen = () => {
     }
   };
 
-  const handleRefresh = () => {
-    console.log("Refreshing preview...");
-    setPdfUri("");
-    if (viewMode === "pdf") {
-      loadPDFContent();
-    } else {
-      loadHTMLContent();
-    }
-  };
-
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -167,69 +106,107 @@ export const InvoicePreviewScreen = () => {
             <Ionicons name="arrow-back" size={24} color={Colors.text} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.title}>Invoice Preview</Text>
-            <TouchableOpacity
-              onPress={toggleViewMode}
-              style={styles.viewModeButton}
-            >
-              <Text style={styles.subtitle}>
-                {viewMode === "html" ? "Try PDF View" : "Switch to HTML"}
-              </Text>
-            </TouchableOpacity>
+            <Text style={styles.title}>Invoice PDF</Text>
           </View>
-          <TouchableOpacity onPress={handleShare} disabled={isGeneratingPDF}>
+          <TouchableOpacity
+            onPress={handleShare}
+            disabled={isGeneratingPDF || !pdfUri}
+          >
             <Ionicons
               name={isGeneratingPDF ? "hourglass-outline" : "share-outline"}
               size={24}
-              color={isGeneratingPDF ? Colors.textLight : Colors.text}
+              color={
+                isGeneratingPDF || isLoadingPreview
+                  ? Colors.textLight
+                  : Colors.text
+              }
             />
           </TouchableOpacity>
         </View>
 
         {/* Content */}
         <View style={styles.content}>
-          {isLoadingPDF ? (
+          {isLoadingPreview ? (
             <View style={styles.loadingContainer}>
               <Ionicons
                 name="document-text"
-                size={60}
+                size={80}
                 color={Colors.primary || Colors.black}
               />
               <Text style={styles.loadingText}>Generating PDF preview...</Text>
               <Text style={styles.loadingSubtext}>
-                Converting invoice to PDF format
+                Please wait while we create your preview
               </Text>
             </View>
           ) : pdfUri ? (
-            <WebView
-              source={{ uri: pdfUri }}
-              style={styles.webview}
-              showsVerticalScrollIndicator={true}
-              showsHorizontalScrollIndicator={false}
-              startInLoadingState={true}
-              scalesPageToFit={Platform.OS === "android"}
-              onError={(error) => {
-                console.error("PDF WebView error:", error);
-                Alert.alert(
-                  "PDF Preview Error",
-                  "Failed to display PDF. The file may be corrupted or too large."
-                );
-              }}
-              onLoadStart={() => console.log("PDF WebView loading started")}
-              onLoadEnd={() => console.log("PDF WebView loading completed")}
-              onMessage={(event) =>
-                console.log("WebView message:", event.nativeEvent.data)
-              }
-            />
+            <View style={styles.pdfContainer}>
+              <WebView
+                source={{
+                  html: `
+                    <html>
+                      <head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <style>
+                          * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                          }
+                          html, body {
+                            width: 100%;
+                            height: 100%;
+                            overflow: hidden;
+                            background: #f8f9fa;
+                          }
+                          embed {
+                            width: 100%;
+                            height: 100%;
+                            border: none;
+                            object-fit: contain;
+                          }
+                        </style>
+                      </head>
+                      <body>
+                        <embed src="${pdfUri}" type="application/pdf" />
+                      </body>
+                    </html>
+                  `,
+                }}
+                style={styles.webview}
+                showsVerticalScrollIndicator={true}
+                showsHorizontalScrollIndicator={false}
+                startInLoadingState={true}
+                scalesPageToFit={Platform.OS === "android"}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                allowFileAccess={true}
+                allowUniversalAccessFromFileURLs={true}
+                mixedContentMode="compatibility"
+                onError={(error) => {
+                  console.error("PDF WebView error:", error);
+                  Alert.alert(
+                    "PDF Preview Error",
+                    "Failed to display PDF preview. The content may be too large."
+                  );
+                }}
+                onLoadStart={() => console.log("PDF WebView loading started")}
+                onLoadEnd={() => console.log("PDF WebView loading completed")}
+                onMessage={(event) =>
+                  console.log("WebView message:", event.nativeEvent.data)
+                }
+              />
+            </View>
           ) : (
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={60} color={Colors.danger} />
-              <Text style={styles.errorText}>Failed to generate PDF</Text>
+              <Text style={styles.errorText}>
+                Failed to generate PDF preview
+              </Text>
               <Text style={styles.errorSubtext}>
                 Please check your invoice data and try again
               </Text>
               <TouchableOpacity
-                onPress={loadPDFContent}
+                onPress={loadPDFPreview}
                 style={styles.retryButton}
               >
                 <Text style={styles.retryText}>Retry</Text>
@@ -243,10 +220,10 @@ export const InvoicePreviewScreen = () => {
           <TouchableOpacity
             style={[
               styles.shareButton,
-              isGeneratingPDF && styles.buttonDisabled,
+              (isGeneratingPDF || isLoadingPreview) && styles.buttonDisabled,
             ]}
             onPress={handleShare}
-            disabled={isGeneratingPDF}
+            disabled={isGeneratingPDF || isLoadingPreview}
           >
             <Ionicons
               name={isGeneratingPDF ? "hourglass-outline" : "share-outline"}
@@ -307,11 +284,21 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    backgroundColor: Colors.backgroundSecondary || "#f8f9fa",
+    padding: Spacing.lg,
+  },
+  pdfContainer: {
+    flex: 1,
+    borderRadius: BorderRadius.lg,
+    overflow: "hidden",
     backgroundColor: Colors.white,
+    ...Shadow.lg,
+    borderWidth: 1,
+    borderColor: Colors.border || "#e0e6ed",
   },
   webview: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: "transparent",
   },
   loadingContainer: {
     flex: 1,
@@ -391,5 +378,46 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  successContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xl,
+  },
+  successText: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    marginTop: Spacing.md,
+    textAlign: "center",
+  },
+  successSubtext: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textLight,
+    marginTop: Spacing.xs,
+    textAlign: "center",
+  },
+  invoiceNumber: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.primary,
+    marginTop: Spacing.sm,
+    textAlign: "center",
+  },
+  regenerateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.backgroundSecondary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.lg,
+  },
+  regenerateText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.primary,
+    marginLeft: Spacing.xs,
+    fontWeight: Typography.weights.medium,
   },
 });
