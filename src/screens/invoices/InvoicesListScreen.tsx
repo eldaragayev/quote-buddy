@@ -195,7 +195,7 @@ export const InvoicesListScreen = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Invoices</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Settings' as any)}>
-          <Ionicons name="settings-outline" size={24} color={Colors.text} />
+          <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -231,10 +231,12 @@ export const InvoicesListScreen = () => {
         contentContainerStyle={filteredInvoices.length === 0 && styles.emptyContainer}
       />
 
-      <FloatingActionButton
-        onPress={handleCreateInvoice}
-        label="Create Invoice"
-      />
+      {filteredInvoices.length === 0 ? null : (
+        <FloatingActionButton
+          onPress={handleCreateInvoice}
+          label="Create Invoice"
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -242,22 +244,22 @@ export const InvoicesListScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.backgroundSecondary,
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
+    backgroundColor: Colors.background,
   },
   title: {
-    fontSize: Typography.sizes.xxl,
+    fontSize: Typography.sizes.xxxl,
     fontWeight: Typography.weights.bold,
     color: Colors.text,
+    letterSpacing: -0.5,
   },
   summary: {
     paddingHorizontal: Spacing.lg,

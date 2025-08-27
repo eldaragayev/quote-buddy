@@ -10,46 +10,33 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, BorderRadius } from '../../styles/theme';
-import { FloatingActionButton } from '../../components/common/FloatingActionButton';
-import { EmptyState } from '../../components/common/EmptyState';
+import { Colors, Typography, Spacing, BorderRadius, Shadow } from '../../styles/theme';
 import { InvoiceModel } from '../../models/InvoiceModel';
 import { SettingsModel } from '../../models/SettingsModel';
 import { formatCurrency } from '../../utils/formatters';
 import { SimpleLineChart } from '../../components/charts/SimpleLineChart';
 
-
-type TimeRange = 'week' | 'month' | 'quarter' | 'year' | 'custom';
-type ChartType = 'invoices' | 'expenses' | 'balance';
+type TimeRange = 'week' | 'month' | 'year';
 
 interface KPIData {
-  paid: number;
-  unpaid: number;
-  total: number;
+  revenue: number;
+  pending: number;
   overdue: number;
-}
-
-interface ClientSales {
-  clientId: number;
-  clientName: string;
-  amount: number;
-  percentage: number;
+  invoiceCount: number;
 }
 
 export const DashboardScreen = () => {
   const navigation = useNavigation();
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
-  const [chartType, setChartType] = useState<ChartType>('invoices');
   const [defaultCurrency, setDefaultCurrency] = useState<string>('USD');
   const [kpiData, setKpiData] = useState<KPIData>({
-    paid: 0,
-    unpaid: 0,
-    total: 0,
+    revenue: 0,
+    pending: 0,
     overdue: 0,
+    invoiceCount: 0,
   });
-  const [topClients, setTopClients] = useState<ClientSales[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
-  const [chartData, setChartData] = useState<any>({ invoices: [], expenses: [], balance: [] });
+  const [chartData, setChartData] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -70,9 +57,6 @@ export const DashboardScreen = () => {
         case 'month':
           startDate.setMonth(endDate.getMonth() - 1);
           break;
-        case 'quarter':
-          startDate.setMonth(endDate.getMonth() - 3);
-          break;
         case 'year':
           startDate.setFullYear(endDate.getFullYear() - 1);
           break;
@@ -88,18 +72,19 @@ export const DashboardScreen = () => {
       });
 
       // Calculate KPIs
-      let paid = 0;
-      let unpaid = 0;
+      let revenue = 0;
+      let pending = 0;
       let overdue = 0;
+      let invoiceCount = filteredInvoices.length;
 
       filteredInvoices.forEach(invoice => {
         const items = invoice.items || [];
         const total = items.reduce((sum: number, item: any) => sum + (item.qty * item.rate), 0);
         
         if (invoice.status === 'paid') {
-          paid += total;
+          revenue += total;
         } else {
-          unpaid += total;
+          pending += total;
           
           if (invoice.due_date && new Date(invoice.due_date) < new Date()) {
             overdue += total;
@@ -108,37 +93,11 @@ export const DashboardScreen = () => {
       });
 
       setKpiData({
-        paid,
-        unpaid,
-        total: paid + unpaid,
+        revenue,
+        pending,
         overdue,
+        invoiceCount,
       });
-
-      // Calculate top clients
-      const clientTotals: { [key: string]: { name: string; amount: number } } = {};
-      
-      filteredInvoices.forEach(invoice => {
-        const clientName = (invoice as any).client_name || 'Unknown';
-        const items = invoice.items || [];
-        const total = items.reduce((sum: number, item: any) => sum + (item.qty * item.rate), 0);
-        
-        if (!clientTotals[clientName]) {
-          clientTotals[clientName] = { name: clientName, amount: 0 };
-        }
-        clientTotals[clientName].amount += total;
-      });
-
-      const sortedClients = Object.values(clientTotals)
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 5)
-        .map((client, index) => ({
-          clientId: index,
-          clientName: client.name,
-          amount: client.amount,
-          percentage: kpiData.total > 0 ? (client.amount / kpiData.total) * 100 : 0,
-        }));
-
-      setTopClients(sortedClients);
 
       // Calculate chart data
       const chartPoints = calculateChartData(filteredInvoices, timeRange);
@@ -159,10 +118,8 @@ export const DashboardScreen = () => {
   }, [timeRange]);
 
   const calculateChartData = (invoices: any[], range: TimeRange) => {
-    // Create time buckets based on range
     const endDate = new Date();
-    const startDate = new Date();
-    const periods: { [key: string]: { invoices: number; expenses: number } } = {};
+    const periods: { [key: string]: number } = {};
     const labels: string[] = [];
     
     switch (range) {
@@ -173,40 +130,26 @@ export const DashboardScreen = () => {
           date.setDate(date.getDate() - i);
           const label = date.toLocaleDateString('en', { weekday: 'short' });
           labels.push(label);
-          periods[label] = { invoices: 0, expenses: 0 };
+          periods[label] = 0;
         }
-        startDate.setDate(endDate.getDate() - 7);
         break;
       case 'month':
         // Last 4 weeks
         for (let i = 3; i >= 0; i--) {
-          const label = `Week ${4 - i}`;
+          const label = `W${4 - i}`;
           labels.push(label);
-          periods[label] = { invoices: 0, expenses: 0 };
+          periods[label] = 0;
         }
-        startDate.setDate(endDate.getDate() - 30);
-        break;
-      case 'quarter':
-        // Last 3 months
-        for (let i = 2; i >= 0; i--) {
-          const date = new Date();
-          date.setMonth(date.getMonth() - i);
-          const label = date.toLocaleDateString('en', { month: 'short' });
-          labels.push(label);
-          periods[label] = { invoices: 0, expenses: 0 };
-        }
-        startDate.setMonth(endDate.getMonth() - 3);
         break;
       case 'year':
-        // Last 12 months
-        for (let i = 11; i >= 0; i--) {
+        // Last 12 months (show every 3rd month)
+        for (let i = 11; i >= 0; i -= 3) {
           const date = new Date();
           date.setMonth(date.getMonth() - i);
           const label = date.toLocaleDateString('en', { month: 'short' });
           labels.push(label);
-          periods[label] = { invoices: 0, expenses: 0 };
+          periods[label] = 0;
         }
-        startDate.setFullYear(endDate.getFullYear() - 1);
         break;
     }
     
@@ -216,53 +159,31 @@ export const DashboardScreen = () => {
       const items = invoice.items || [];
       const total = items.reduce((sum: number, item: any) => sum + (item.qty * item.rate), 0);
       
-      // Find the right bucket based on range
       let bucketLabel = '';
       
       if (range === 'week') {
-        // Match to day of week
         bucketLabel = invoiceDate.toLocaleDateString('en', { weekday: 'short' });
       } else if (range === 'month') {
-        // Calculate which week the invoice falls into
         const weekNumber = Math.floor((endDate.getTime() - invoiceDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
         if (weekNumber >= 0 && weekNumber < 4) {
-          bucketLabel = `Week ${4 - weekNumber}`;
+          bucketLabel = `W${4 - weekNumber}`;
         }
-      } else if (range === 'quarter' || range === 'year') {
-        // Match to month
+      } else if (range === 'year') {
         bucketLabel = invoiceDate.toLocaleDateString('en', { month: 'short' });
       }
       
-      if (periods[bucketLabel]) {
-        periods[bucketLabel].invoices += total;
+      if (periods[bucketLabel] !== undefined) {
+        periods[bucketLabel] += total;
       }
     });
     
-    // Create chart data arrays
-    const invoiceData = labels.map((label, index) => ({
+    // Create chart data array
+    return labels.map((label, index) => ({
       x: index,
-      y: periods[label].invoices,
+      y: periods[label],
       label: label,
-      value: periods[label].invoices,
+      value: periods[label],
     }));
-    
-    // Mock expense data (30% of invoices)
-    const expenseData = labels.map((label, index) => ({
-      x: index,
-      y: periods[label].invoices * 0.3,
-      label: label,
-      value: periods[label].invoices * 0.3,
-    }));
-    
-    // Calculate balance (invoices - expenses)
-    const balanceData = labels.map((label, index) => ({
-      x: index,
-      y: periods[label].invoices * 0.7,
-      label: label,
-      value: periods[label].invoices * 0.7,
-    }));
-    
-    return { invoices: invoiceData, expenses: expenseData, balance: balanceData };
   };
 
   useFocusEffect(
@@ -272,7 +193,11 @@ export const DashboardScreen = () => {
   );
 
   const handleCreateInvoice = () => {
-    (navigation as any).navigate('InvoiceDetail', {});
+    // Navigate to Invoices tab and then to InvoiceDetail
+    (navigation as any).navigate('Invoices', {
+      screen: 'InvoiceDetail',
+      params: {}
+    });
   };
 
   const handleRefresh = () => {
@@ -280,232 +205,201 @@ export const DashboardScreen = () => {
     loadDashboardData();
   };
 
-  const renderKPICard = (title: string, value: number, icon: string, color: string) => (
-    <TouchableOpacity style={styles.kpiCard}>
-      <View style={styles.kpiHeader}>
-        <Ionicons name={icon as any} size={20} color={color} />
-        <Text style={styles.kpiTitle}>{title}</Text>
-      </View>
-      <Text style={styles.kpiValue}>{formatCurrency(value, defaultCurrency)}</Text>
-    </TouchableOpacity>
-  );
+  const formatAmount = (value: number) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    }
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`;
+    }
+    return value.toFixed(0);
+  };
 
-  const renderTimeRangeChips = () => (
-    <ScrollView 
-      horizontal 
-      showsHorizontalScrollIndicator={false}
-      style={styles.chipsContainer}
-    >
-      {(['week', 'month', 'quarter', 'year'] as TimeRange[]).map(range => (
+  const renderTimeRangeSelector = () => (
+    <View style={styles.timeRangeContainer}>
+      {(['week', 'month', 'year'] as TimeRange[]).map(range => (
         <TouchableOpacity
           key={range}
-          style={[
-            styles.chip,
-            timeRange === range && styles.chipActive
-          ]}
+          style={[styles.timeRangeButton, timeRange === range && styles.timeRangeButtonActive]}
           onPress={() => setTimeRange(range)}
         >
-          <Text style={[
-            styles.chipText,
-            timeRange === range && styles.chipTextActive
-          ]}>
-            {range === 'week' ? 'This Week' : 
-             range === 'month' ? 'This Month' :
-             range === 'quarter' ? 'Quarter' : 'Year'}
+          <Text style={[styles.timeRangeText, timeRange === range && styles.timeRangeTextActive]}>
+            {range === 'week' ? '7D' : range === 'month' ? '30D' : '1Y'}
           </Text>
         </TouchableOpacity>
       ))}
-    </ScrollView>
-  );
-
-  const renderChart = () => {
-    const currentData = chartData[chartType] || [];
-    const chartColor = chartType === 'invoices' ? Colors.primary : 
-                       chartType === 'expenses' ? Colors.warning : 
-                       Colors.success;
-    
-    return (
-      <View style={styles.chartContainer}>
-        <View style={styles.chartHeader}>
-          <View style={styles.chartToggle}>
-            {(['invoices', 'expenses', 'balance'] as ChartType[]).map(type => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.chartToggleButton,
-                  chartType === type && styles.chartToggleButtonActive
-                ]}
-                onPress={() => setChartType(type)}
-              >
-                <Text style={[
-                  styles.chartToggleText,
-                  chartType === type && styles.chartToggleTextActive
-                ]}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-        <SimpleLineChart
-          data={currentData}
-          color={chartColor}
-          showGrid={true}
-          formatValue={(value) => {
-            if (value >= 1000) {
-              return `${(value / 1000).toFixed(1)}k`;
-            }
-            return value.toFixed(0);
-          }}
-        />
-      </View>
-    );
-  };
-
-  const renderTopClients = () => (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Top Clients</Text>
-        <TouchableOpacity onPress={() => (navigation as any).navigate('Clients')}>
-          <Text style={styles.sectionAction}>View all</Text>
-        </TouchableOpacity>
-      </View>
-      {topClients.length === 0 ? (
-        <Text style={styles.emptyText}>No client data yet</Text>
-      ) : (
-        topClients.map((client) => (
-          <View key={client.clientId} style={styles.clientRow}>
-            <Text style={styles.clientName} numberOfLines={1}>
-              {client.clientName}
-            </Text>
-            <View style={styles.clientStats}>
-              <Text style={styles.clientAmount}>
-                {formatCurrency(client.amount, defaultCurrency)}
-              </Text>
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.progressFill,
-                    { width: `${Math.min(client.percentage, 100)}%` }
-                  ]}
-                />
-              </View>
-            </View>
-          </View>
-        ))
-      )}
-    </View>
-  );
-
-  const renderRecentInvoices = () => (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Invoices</Text>
-        <TouchableOpacity onPress={() => (navigation as any).navigate('Invoices')}>
-          <Text style={styles.sectionAction}>See all</Text>
-        </TouchableOpacity>
-      </View>
-      {recentInvoices.length === 0 ? (
-        <Text style={styles.emptyText}>No invoices yet</Text>
-      ) : (
-        recentInvoices.map((invoice) => (
-          <TouchableOpacity 
-            key={invoice.id}
-            style={styles.invoiceRow}
-            onPress={() => (navigation as any).navigate('InvoiceDetail', { invoiceId: invoice.id })}
-          >
-            <View style={styles.invoiceInfo}>
-              <Text style={styles.invoiceNumber}>#{invoice.number}</Text>
-              <Text style={styles.invoiceClient} numberOfLines={1}>
-                {(invoice as any).client_name || 'Unknown'}
-              </Text>
-            </View>
-            <View style={styles.invoiceStats}>
-              <Text style={styles.invoiceAmount}>
-                {formatCurrency(
-                  invoice.items?.reduce((sum: number, item: any) => 
-                    sum + (item.qty * item.rate), 0) || 0,
-                  invoice.currency_code
-                )}
-              </Text>
-              <View style={[
-                styles.statusBadge,
-                invoice.status === 'paid' ? styles.statusPaid : styles.statusUnpaid
-              ]}>
-                <Text style={styles.statusText}>
-                  {invoice.status || 'unpaid'}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))
-      )}
     </View>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Dashboard</Text>
+          <View>
+            <Text style={styles.greeting}>Welcome back</Text>
+            <Text style={styles.title}>Dashboard</Text>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading dashboard...</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const isEmpty = kpiData.total === 0 && recentInvoices.length === 0;
+  const isEmpty = kpiData.invoiceCount === 0 && recentInvoices.length === 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Dashboard</Text>
-        <TouchableOpacity onPress={() => (navigation as any).navigate('Settings')}>
-          <Ionicons name="settings-outline" size={24} color={Colors.text} />
-        </TouchableOpacity>
-      </View>
-
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[Colors.primary]}
+            tintColor={Colors.textSecondary}
           />
         }
       >
-        {renderTimeRangeChips()}
-
-        <View style={styles.kpiContainer}>
-          {renderKPICard('Paid', kpiData.paid, 'checkmark-circle', Colors.success)}
-          {renderKPICard('Unpaid', kpiData.unpaid, 'time-outline', Colors.warning)}
-          {renderKPICard('Total', kpiData.total, 'wallet-outline', Colors.primary)}
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.greeting}>Welcome back</Text>
+              <Text style={styles.title}>Dashboard</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.settingsButton}
+              onPress={() => (navigation as any).navigate('Settings')}
+            >
+              <Ionicons name="settings-outline" size={24} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+          {renderTimeRangeSelector()}
         </View>
 
         {isEmpty ? (
-          <EmptyState
-            icon="bar-chart-outline"
-            title="No activity yet"
-            subtitle="Create your first invoice to see analytics"
-            actionLabel="Create Invoice"
-            onAction={handleCreateInvoice}
-          />
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyCard}>
+              <Ionicons name="bar-chart-outline" size={48} color={Colors.textLight} />
+              <Text style={styles.emptyTitle}>No data yet</Text>
+              <Text style={styles.emptySubtitle}>Create your first invoice to see analytics</Text>
+              <TouchableOpacity style={styles.createButton} onPress={handleCreateInvoice}>
+                <Text style={styles.createButtonText}>Create Invoice</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         ) : (
           <>
-            {renderChart()}
-            {renderTopClients()}
-            {renderRecentInvoices()}
+            {/* KPI Cards */}
+            <View style={styles.kpiGrid}>
+              <View style={[styles.kpiCard, styles.kpiCardLarge]}>
+                <View style={styles.kpiIcon}>
+                  <Ionicons name="trending-up" size={24} color={Colors.black} />
+                </View>
+                <Text style={styles.kpiLabel}>Revenue</Text>
+                <Text style={styles.kpiValue}>${formatAmount(kpiData.revenue)}</Text>
+                <Text style={styles.kpiChange}>
+                  {kpiData.invoiceCount} invoice{kpiData.invoiceCount !== 1 ? 's' : ''}
+                </Text>
+              </View>
+              
+              <View style={styles.kpiCardColumn}>
+                <View style={styles.kpiCardSmall}>
+                  <Text style={styles.kpiSmallLabel}>Pending</Text>
+                  <Text style={styles.kpiSmallValue}>${formatAmount(kpiData.pending)}</Text>
+                </View>
+                <View style={[styles.kpiCardSmall, kpiData.overdue > 0 && styles.kpiCardDanger]}>
+                  <Text style={[styles.kpiSmallLabel, kpiData.overdue > 0 && styles.textDanger]}>
+                    Overdue
+                  </Text>
+                  <Text style={[styles.kpiSmallValue, kpiData.overdue > 0 && styles.textDanger]}>
+                    ${formatAmount(kpiData.overdue)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Chart */}
+            {chartData.length > 0 && (
+              <View style={styles.chartCard}>
+                <Text style={styles.chartTitle}>Revenue Overview</Text>
+                <SimpleLineChart
+                  data={chartData}
+                  color={Colors.black}
+                  showGrid={true}
+                  formatValue={formatAmount}
+                />
+              </View>
+            )}
+
+            {/* Recent Activity */}
+            <View style={styles.activitySection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Activity</Text>
+                <TouchableOpacity onPress={() => (navigation as any).navigate('Invoices', { screen: 'InvoicesList' })}>
+                  <Text style={styles.sectionLink}>View all</Text>
+                </TouchableOpacity>
+              </View>
+
+              {recentInvoices.map((invoice) => (
+                <TouchableOpacity
+                  key={invoice.id}
+                  style={styles.activityItem}
+                  onPress={() => (navigation as any).navigate('Invoices', { 
+                    screen: 'InvoiceDetail', 
+                    params: { invoiceId: invoice.id }
+                  })}
+                >
+                  <View style={styles.activityIcon}>
+                    <Ionicons 
+                      name={invoice.status === 'paid' ? 'checkmark-circle' : 'time-outline'} 
+                      size={20} 
+                      color={invoice.status === 'paid' ? Colors.success : Colors.textSecondary} 
+                    />
+                  </View>
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityTitle}>
+                      Invoice #{invoice.number}
+                    </Text>
+                    <Text style={styles.activitySubtitle}>
+                      {(invoice as any).client_name || 'No client'}
+                    </Text>
+                  </View>
+                  <View style={styles.activityRight}>
+                    <Text style={styles.activityAmount}>
+                      {formatCurrency(
+                        invoice.items?.reduce((sum: number, item: any) => 
+                          sum + (item.qty * item.rate), 0) || 0,
+                        invoice.currency_code
+                      )}
+                    </Text>
+                    <Text style={styles.activityDate}>
+                      {new Date(invoice.issued_date).toLocaleDateString('en', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Quick Actions */}
+            <View style={styles.quickActions}>
+              <TouchableOpacity 
+                style={styles.quickActionButton}
+                onPress={handleCreateInvoice}
+              >
+                <Ionicons name="add-circle" size={24} color={Colors.white} />
+                <Text style={styles.quickActionText}>New Invoice</Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </ScrollView>
-
-      <FloatingActionButton
-        onPress={handleCreateInvoice}
-        label="Create Invoice"
-      />
     </SafeAreaView>
   );
 };
@@ -513,25 +407,39 @@ export const DashboardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.backgroundSecondary,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  title: {
-    fontSize: Typography.sizes.xxl,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: Spacing.xxxl,
+  },
+  header: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  settingsButton: {
+    padding: Spacing.sm,
+    marginTop: -Spacing.sm,
+    marginRight: -Spacing.sm,
+  },
+  greeting: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  title: {
+    fontSize: Typography.sizes.xxxl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    letterSpacing: -0.5,
   },
   loadingContainer: {
     flex: 1,
@@ -542,121 +450,157 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.textSecondary,
   },
-  chipsContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.white,
+  timeRangeContainer: {
+    flexDirection: 'row',
+    marginTop: Spacing.lg,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xs,
   },
-  chip: {
-    paddingHorizontal: Spacing.md,
+  timeRangeButton: {
+    flex: 1,
     paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.backgroundTertiary,
-    marginRight: Spacing.sm,
+    alignItems: 'center',
+    borderRadius: BorderRadius.md,
   },
-  chipActive: {
-    backgroundColor: Colors.primary,
+  timeRangeButtonActive: {
+    backgroundColor: Colors.white,
+    ...Shadow.sm,
   },
-  chipText: {
+  timeRangeText: {
     fontSize: Typography.sizes.sm,
-    color: Colors.text,
+    color: Colors.textSecondary,
     fontWeight: Typography.weights.medium,
   },
-  chipTextActive: {
+  timeRangeTextActive: {
+    color: Colors.text,
+    fontWeight: Typography.weights.semibold,
+  },
+  emptyContainer: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xxxl,
+  },
+  emptyCard: {
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxxl,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    marginTop: Spacing.lg,
+  },
+  emptySubtitle: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+  },
+  createButton: {
+    marginTop: Spacing.xl,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+  },
+  createButtonText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
     color: Colors.white,
   },
-  kpiContainer: {
+  kpiGrid: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
     gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   kpiCard: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  kpiCardLarge: {
+    flex: 2,
+  },
+  kpiCardColumn: {
+    flex: 1,
+    gap: Spacing.md,
+  },
+  kpiCardSmall: {
     flex: 1,
     backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  kpiHeader: {
-    flexDirection: 'row',
+  kpiCardDanger: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+  },
+  kpiIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.backgroundSecondary,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.xs,
     marginBottom: Spacing.sm,
   },
-  kpiTitle: {
-    fontSize: Typography.sizes.xs,
+  kpiLabel: {
+    fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: Typography.weights.medium,
+    marginBottom: Spacing.xs,
   },
   kpiValue: {
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    letterSpacing: -0.5,
+  },
+  kpiChange: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.textLight,
+    marginTop: Spacing.xs,
+  },
+  kpiSmallLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  kpiSmallValue: {
     fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
-  chartContainer: {
-    backgroundColor: Colors.white,
-    margin: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+  textDanger: {
+    color: '#DC2626',
   },
-  chartHeader: {
-    marginBottom: Spacing.md,
-  },
-  chartToggle: {
-    flexDirection: 'row',
-    backgroundColor: Colors.backgroundTertiary,
-    borderRadius: BorderRadius.md,
-    padding: 2,
-  },
-  chartToggleButton: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    borderRadius: BorderRadius.sm,
-  },
-  chartToggleButtonActive: {
-    backgroundColor: Colors.white,
-  },
-  chartToggleText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
-    fontWeight: Typography.weights.medium,
-  },
-  chartToggleTextActive: {
-    color: Colors.primary,
-  },
-  chartPlaceholder: {
-    height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chartPlaceholderText: {
-    marginTop: Spacing.md,
-    fontSize: Typography.sizes.sm,
-    color: Colors.textLight,
-  },
-  section: {
+  chartCard: {
     backgroundColor: Colors.white,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  chartTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+  },
+  activitySection: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -665,97 +609,76 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
-  sectionAction: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.primary,
-    fontWeight: Typography.weights.medium,
-  },
-  emptyText: {
+  sectionLink: {
     fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
-    textAlign: 'center',
-    paddingVertical: Spacing.md,
   },
-  clientRow: {
+  activityItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  clientName: {
-    flex: 1,
-    fontSize: Typography.sizes.sm,
-    color: Colors.text,
+  activityIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.backgroundSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: Spacing.md,
   },
-  clientStats: {
-    alignItems: 'flex-end',
-  },
-  clientAmount: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  progressBar: {
-    width: 80,
-    height: 4,
-    backgroundColor: Colors.backgroundTertiary,
-    borderRadius: 2,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 2,
-  },
-  invoiceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  invoiceInfo: {
+  activityContent: {
     flex: 1,
   },
-  invoiceNumber: {
+  activityTitle: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
     color: Colors.text,
   },
-  invoiceClient: {
+  activitySubtitle: {
     fontSize: Typography.sizes.xs,
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  invoiceStats: {
+  activityRight: {
     alignItems: 'flex-end',
   },
-  invoiceAmount: {
+  activityAmount: {
     fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
-    marginBottom: Spacing.xs,
   },
-  statusBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-  },
-  statusPaid: {
-    backgroundColor: `${Colors.success}20`,
-  },
-  statusUnpaid: {
-    backgroundColor: `${Colors.warning}20`,
-  },
-  statusText: {
+  activityDate: {
     fontSize: Typography.sizes.xs,
-    color: Colors.text,
-    textTransform: 'capitalize',
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  quickActions: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+  },
+  quickActionButton: {
+    backgroundColor: Colors.black,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    ...Shadow.md,
+  },
+  quickActionText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.white,
   },
 });

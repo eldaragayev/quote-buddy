@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, BorderRadius } from '../../styles/theme';
+import { Colors, Typography, Spacing, BorderRadius, Shadow } from '../../styles/theme';
 import { IssuerModel } from '../../models/IssuerModel';
 import { Issuer } from '../../types/database';
 import { FloatingActionButton } from '../../components/common/FloatingActionButton';
@@ -143,48 +143,78 @@ export const IssuerSettingsScreen = () => {
 
   const renderIssuerItem = ({ item }: { item: Issuer }) => (
     <TouchableOpacity
-      style={styles.issuerItem}
+      style={styles.issuerCard}
       onPress={() => handleEditIssuer(item)}
-      onLongPress={() => handleDeleteIssuer(item)}
+      activeOpacity={0.7}
     >
-      <View style={styles.issuerInfo}>
-        <View style={styles.issuerHeader}>
-          <Text style={styles.issuerName}>{item.company_name}</Text>
-          {item.is_default === 1 && (
-            <View style={styles.defaultBadge}>
-              <Text style={styles.defaultText}>Default</Text>
+      {item.is_default === 1 && (
+        <View style={styles.defaultIndicator} />
+      )}
+      <View style={styles.issuerContent}>
+        <View style={styles.issuerLeft}>
+          <View style={styles.issuerIconContainer}>
+            <Ionicons name="business" size={20} color={Colors.text} />
+          </View>
+          <View style={styles.issuerInfo}>
+            <View style={styles.issuerHeader}>
+              <Text style={styles.issuerName}>{item.company_name}</Text>
+              {item.is_default === 1 && (
+                <View style={styles.defaultBadge}>
+                  <Text style={styles.defaultText}>DEFAULT</Text>
+                </View>
+              )}
             </View>
-          )}
+            {item.contact_name && (
+              <Text style={styles.issuerDetail}>
+                <Ionicons name="person-outline" size={12} color={Colors.textSecondary} /> {item.contact_name}
+              </Text>
+            )}
+            {item.email && (
+              <Text style={styles.issuerDetail}>
+                <Ionicons name="mail-outline" size={12} color={Colors.textSecondary} /> {item.email}
+              </Text>
+            )}
+          </View>
         </View>
-        {item.contact_name && (
-          <Text style={styles.issuerDetail}>{item.contact_name}</Text>
-        )}
-        {item.email && (
-          <Text style={styles.issuerDetail}>{item.email}</Text>
-        )}
-      </View>
-      <View style={styles.issuerActions}>
-        {item.is_default !== 1 && (
+        <View style={styles.issuerActions}>
+          {item.is_default !== 1 && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleSetDefault(item)}
+            >
+              <Ionicons name="star-outline" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => handleSetDefault(item)}
+            onPress={() => handleDeleteIssuer(item)}
           >
-            <Ionicons name="star-outline" size={20} color={Colors.textSecondary} />
+            <Ionicons name="trash-outline" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
-        )}
-        <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+        </View>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Issuer Settings</Text>
-        <View style={{ width: 24 }} />
+        <Text style={styles.title}>Manage Issuers</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {/* Info Card */}
+      <View style={styles.infoCard}>
+        <View style={styles.infoIconContainer}>
+          <Ionicons name="information-circle" size={20} color={Colors.white} />
+        </View>
+        <View style={styles.infoTextContainer}>
+          <Text style={styles.infoTitle}>Company Details</Text>
+          <Text style={styles.infoSubtitle}>Manage your business information that appears on invoices</Text>
+        </View>
       </View>
 
       {loading ? (
@@ -205,7 +235,11 @@ export const IssuerSettingsScreen = () => {
               onAction={handleAddIssuer}
             />
           }
-          contentContainerStyle={issuers.length === 0 && styles.emptyContainer}
+          contentContainerStyle={[
+            styles.listContent,
+            issuers.length === 0 && styles.emptyContainer
+          ]}
+          showsVerticalScrollIndicator={false}
         />
       )}
 
@@ -227,10 +261,15 @@ export const IssuerSettingsScreen = () => {
           >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingIssuer ? 'Edit Issuer' : 'Add Issuer'}
-                </Text>
-                <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                <View style={styles.modalTitleContainer}>
+                  <View style={styles.modalIcon}>
+                    <Ionicons name={editingIssuer ? "create" : "add"} size={20} color={Colors.white} />
+                  </View>
+                  <Text style={styles.modalTitle}>
+                    {editingIssuer ? 'Edit Issuer' : 'New Issuer'}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowAddModal(false)} style={styles.closeButton}>
                   <Ionicons name="close" size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
@@ -242,7 +281,7 @@ export const IssuerSettingsScreen = () => {
                     style={styles.input}
                     value={companyName}
                     onChangeText={setCompanyName}
-                    placeholder="Your company name"
+                    placeholder="Enter company name"
                     placeholderTextColor={Colors.textLight}
                   />
                 </View>
@@ -296,15 +335,22 @@ export const IssuerSettingsScreen = () => {
                   />
                 </View>
 
-                <View style={styles.switchGroup}>
-                  <Text style={styles.label}>Set as Default</Text>
+                <TouchableOpacity 
+                  style={styles.switchGroup}
+                  onPress={() => setIsDefault(!isDefault)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.switchLeft}>
+                    <Ionicons name="star" size={20} color={isDefault ? Colors.black : Colors.textSecondary} />
+                    <Text style={[styles.switchLabel, isDefault && styles.switchLabelActive]}>Set as Default Issuer</Text>
+                  </View>
                   <Switch
                     value={isDefault}
                     onValueChange={setIsDefault}
-                    trackColor={{ false: Colors.border, true: Colors.primary }}
+                    trackColor={{ false: Colors.border, true: Colors.black }}
                     thumbColor={Colors.white}
                   />
-                </View>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.modalFooter}>
@@ -318,7 +364,8 @@ export const IssuerSettingsScreen = () => {
                   style={[styles.button, styles.saveButton]}
                   onPress={handleSaveIssuer}
                 >
-                  <Text style={styles.saveButtonText}>Save</Text>
+                  <Ionicons name="checkmark" size={18} color={Colors.white} style={{ marginRight: 6 }} />
+                  <Text style={styles.saveButtonText}>Save Issuer</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -332,22 +379,28 @@ export const IssuerSettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.backgroundSecondary,
+    backgroundColor: Colors.white,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.lg,
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   title: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.bold,
     color: Colors.text,
+    letterSpacing: -0.5,
   },
   loadingContainer: {
     flex: 1,
@@ -358,23 +411,82 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.textSecondary,
   },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.black,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    ...Shadow.md,
+  },
+  infoIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  infoTextContainer: {
+    flex: 1,
+  },
+  infoTitle: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.white,
+    marginBottom: 2,
+  },
+  infoSubtitle: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.white,
+    opacity: 0.7,
+  },
+  listContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 100,
+  },
   emptyContainer: {
     flexGrow: 1,
   },
-  issuerItem: {
+  issuerCard: {
+    backgroundColor: Colors.white,
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    ...Shadow.sm,
+  },
+  defaultIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: Colors.black,
+  },
+  issuerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.white,
     padding: Spacing.md,
-    marginHorizontal: Spacing.md,
-    marginVertical: Spacing.xs,
-    borderRadius: BorderRadius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+  },
+  issuerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  issuerIconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.backgroundSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
   },
   issuerInfo: {
     flex: 1,
@@ -387,36 +499,41 @@ const styles = StyleSheet.create({
   },
   issuerName: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   defaultBadge: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.black,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
   },
   defaultText: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.primary,
-    fontWeight: Typography.weights.medium,
+    fontSize: 9,
+    color: Colors.white,
+    fontWeight: Typography.weights.bold,
+    letterSpacing: 0.5,
   },
   issuerDetail: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.xs,
     color: Colors.textSecondary,
     marginTop: 2,
   },
   issuerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   actionButton: {
-    padding: Spacing.xs,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -428,9 +545,10 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     width: '90%',
     maxWidth: 400,
+    ...Shadow.lg,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -438,66 +556,112 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.borderLight,
+  },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.black,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
   },
   modalTitle: {
     fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.bold,
     color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBody: {
     padding: Spacing.lg,
   },
   inputGroup: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   label: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold,
     color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   input: {
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: Typography.sizes.base,
     color: Colors.text,
+    backgroundColor: Colors.backgroundSecondary,
   },
   textArea: {
-    minHeight: 80,
+    minHeight: 100,
     textAlignVertical: 'top',
+    paddingTop: Spacing.md,
   },
   switchGroup: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    backgroundColor: Colors.backgroundSecondary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginTop: Spacing.sm,
+  },
+  switchLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  switchLabel: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    marginLeft: Spacing.sm,
+    fontWeight: Typography.weights.medium,
+  },
+  switchLabelActive: {
+    color: Colors.text,
   },
   modalFooter: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Spacing.sm,
     padding: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    paddingTop: Spacing.xs,
   },
   button: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: Colors.backgroundTertiary,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   cancelButtonText: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   saveButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.black,
+    ...Shadow.sm,
   },
   saveButtonText: {
     fontSize: Typography.sizes.base,

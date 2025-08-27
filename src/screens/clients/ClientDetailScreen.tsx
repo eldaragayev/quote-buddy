@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, BorderRadius } from '../../styles/theme';
+import { Colors, Typography, Spacing, BorderRadius, Shadow } from '../../styles/theme';
 import { ClientModel } from '../../models/ClientModel';
 import { Client } from '../../types/database';
 
@@ -141,28 +141,34 @@ export const ClientDetailScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>
-          {isEditMode ? 'Edit Client' : 'Add Client'}
+          {isEditMode ? 'Edit Client' : 'New Client'}
         </Text>
-        <TouchableOpacity onPress={handleShowActions}>
-          <Ionicons 
-            name={isEditMode ? "ellipsis-horizontal" : "checkmark"} 
-            size={24} 
-            color={isEditMode ? Colors.text : 'transparent'} 
-          />
-        </TouchableOpacity>
+        {isEditMode && (
+          <TouchableOpacity onPress={handleShowActions}>
+            <Ionicons name="ellipsis-horizontal" size={24} color={Colors.text} />
+          </TouchableOpacity>
+        )}
+        {!isEditMode && <View style={{ width: 24 }} />}
       </View>
 
       <KeyboardAvoidingView 
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <ScrollView style={styles.content}>
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Basic Information</Text>
             
@@ -281,20 +287,29 @@ export const ClientDetailScreen = () => {
             onPress={handleSave}
             disabled={loading}
           >
+            <Ionicons 
+              name={loading ? "hourglass-outline" : isEditMode ? "checkmark" : "add"} 
+              size={20} 
+              color={Colors.white} 
+            />
             <Text style={styles.primaryButtonText}>
-              {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Client'}
+              {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Client'}
             </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.backgroundSecondary,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.white,
   },
   flex: {
     flex: 1,
@@ -303,64 +318,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.lg,
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   title: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.bold,
     color: Colors.text,
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 120,
+  },
   section: {
     backgroundColor: Colors.white,
-    marginBottom: Spacing.md,
-    padding: Spacing.lg,
+    marginBottom: 0,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.bold,
+    color: Colors.textSecondary,
     marginBottom: Spacing.lg,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   field: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   label: {
     fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+    fontWeight: Typography.weights.medium,
   },
   input: {
+    backgroundColor: Colors.backgroundSecondary,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     fontSize: Typography.sizes.base,
     color: Colors.text,
-    backgroundColor: Colors.white,
   },
   textArea: {
     minHeight: 80,
     textAlignVertical: 'top',
   },
   bottomBar: {
-    backgroundColor: Colors.white,
-    padding: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    position: 'absolute',
+    bottom: 0,
+    left: Spacing.xl,
+    right: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
   primaryButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.black,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    ...Shadow.md,
   },
   primaryButtonText: {
     fontSize: Typography.sizes.base,

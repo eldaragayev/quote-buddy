@@ -126,13 +126,13 @@ export const ClientSelector: React.FC<ClientSelectorProps> = ({
         }}
       >
         <View style={styles.clientInfo}>
-          <Text style={styles.clientName}>{item.name}</Text>
+          <Text style={[styles.clientName, isSelected && { color: Colors.white }]}>{item.name}</Text>
           {item.email && (
-            <Text style={styles.clientDetail}>{item.email}</Text>
+            <Text style={[styles.clientDetail, isSelected && { color: Colors.white, opacity: 0.8 }]}>{item.email}</Text>
           )}
         </View>
         {isSelected && (
-          <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />
+          <Ionicons name="checkmark-circle" size={24} color={Colors.white} />
         )}
       </TouchableOpacity>
     );
@@ -254,50 +254,60 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
-    height: '90%',
-    maxHeight: '90%',
+    height: '75%',
+    maxHeight: '75%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   title: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
+    letterSpacing: -0.3,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.backgroundTertiary,
-    margin: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.backgroundSecondary,
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
     gap: Spacing.sm,
   },
   searchInput: {
     flex: 1,
     fontSize: Typography.sizes.base,
     color: Colors.text,
+    letterSpacing: -0.2,
   },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.black,
+    borderRadius: BorderRadius.lg,
+    justifyContent: 'center',
   },
   createButtonText: {
     fontSize: Typography.sizes.base,
-    color: Colors.primary,
-    fontWeight: Typography.weights.medium,
+    color: Colors.white,
+    fontWeight: Typography.weights.semibold,
   },
   listContent: {
     paddingBottom: Spacing.xl,
@@ -306,26 +316,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.xs,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    paddingVertical: Spacing.lg,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.lg,
   },
   clientItemSelected: {
-    backgroundColor: Colors.backgroundSecondary,
+    backgroundColor: Colors.black,
   },
   clientInfo: {
     flex: 1,
   },
   clientName: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
+    letterSpacing: -0.2,
   },
   clientDetail: {
     fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
+    letterSpacing: -0.1,
   },
   emptyState: {
     padding: Spacing.xxxl,

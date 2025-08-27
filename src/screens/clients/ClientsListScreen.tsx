@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing } from '../../styles/theme';
+import { Colors, Typography, Spacing, BorderRadius } from '../../styles/theme';
 import { SearchBar } from '../../components/common/SearchBar';
 import { EmptyState } from '../../components/common/EmptyState';
 import { FloatingActionButton } from '../../components/common/FloatingActionButton';
@@ -131,9 +131,7 @@ export const ClientsListScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Clients</Text>
-        <TouchableOpacity onPress={() => {}}>
-          <Ionicons name="filter-outline" size={24} color={Colors.text} />
-        </TouchableOpacity>
+        <Text style={styles.count}>{filteredClients.length}</Text>
       </View>
 
       <FlatList
@@ -166,10 +164,12 @@ export const ClientsListScreen = () => {
         contentContainerStyle={filteredClients.length === 0 && styles.emptyContainer}
       />
 
-      <FloatingActionButton
-        onPress={handleCreateClient}
-        label="Add Client"
-      />
+      {clients.length > 0 && (
+        <FloatingActionButton
+          onPress={handleCreateClient}
+          label="Add Client"
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -177,22 +177,31 @@ export const ClientsListScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.backgroundSecondary,
+    backgroundColor: Colors.white,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   title: {
-    fontSize: Typography.sizes.xxl,
+    fontSize: Typography.sizes.xxxl,
     fontWeight: Typography.weights.bold,
     color: Colors.text,
+    letterSpacing: -0.5,
+  },
+  count: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textSecondary,
+    backgroundColor: Colors.backgroundSecondary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.lg,
   },
   loadingContainer: {
     flex: 1,

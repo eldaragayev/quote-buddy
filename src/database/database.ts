@@ -4,7 +4,7 @@ const DATABASE_NAME = 'quoteBuddy.db';
 
 export const db = SQLite.openDatabaseSync(DATABASE_NAME);
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const createTables = () => {
   db.execSync(`
@@ -21,7 +21,9 @@ const createTables = () => {
 
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      default_currency_code TEXT
+      default_currency_code TEXT,
+      default_tax_id INTEGER,
+      FOREIGN KEY (default_tax_id) REFERENCES taxes(id)
     );
 
     CREATE TABLE IF NOT EXISTS issuers (
@@ -64,7 +66,8 @@ const createTables = () => {
     CREATE TABLE IF NOT EXISTS taxes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      rate_percent REAL NOT NULL
+      rate_percent REAL NOT NULL,
+      is_default INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS items (
@@ -168,6 +171,31 @@ const createTables = () => {
   `);
 };
 
+const applyMigrations = (fromVersion: number) => {
+  // Migration from version 1 to 2: Add tax default fields
+  if (fromVersion < 2) {
+    try {
+      // Add is_default column to taxes table if it doesn't exist
+      db.execSync(`
+        ALTER TABLE taxes ADD COLUMN is_default INTEGER DEFAULT 0;
+      `);
+    } catch (error) {
+      // Column might already exist, ignore error
+      console.log('is_default column might already exist in taxes table');
+    }
+    
+    try {
+      // Add default_tax_id to settings table if it doesn't exist
+      db.execSync(`
+        ALTER TABLE settings ADD COLUMN default_tax_id INTEGER REFERENCES taxes(id);
+      `);
+    } catch (error) {
+      // Column might already exist, ignore error
+      console.log('default_tax_id column might already exist in settings table');
+    }
+  }
+};
+
 const checkAndMigrate = () => {
   const result = db.getFirstSync<{ version: number }>(
     'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1'
@@ -178,6 +206,10 @@ const checkAndMigrate = () => {
   if (currentVersion < SCHEMA_VERSION) {
     if (currentVersion === 0) {
       createTables();
+      db.runSync('INSERT INTO schema_version (version) VALUES (?)', SCHEMA_VERSION);
+    } else {
+      // Apply migrations for existing databases
+      applyMigrations(currentVersion);
       db.runSync('INSERT INTO schema_version (version) VALUES (?)', SCHEMA_VERSION);
     }
   }

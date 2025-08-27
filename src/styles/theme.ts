@@ -1,29 +1,29 @@
 export const Colors = {
-  primary: '#2563eb',
-  primaryLight: '#60a5fa',
-  primaryDark: '#1e40af',
+  primary: '#000000',
+  primaryLight: '#333333',
+  primaryDark: '#000000',
   
-  success: '#10b981',
-  warning: '#f59e0b',
-  danger: '#ef4444',
+  success: '#34C759',
+  warning: '#FF9F0A',
+  danger: '#FF3B30',
   
-  text: '#1f2937',
-  textSecondary: '#6b7280',
-  textLight: '#9ca3af',
+  text: '#000000',
+  textSecondary: '#666666',
+  textLight: '#999999',
   
-  background: '#ffffff',
-  backgroundSecondary: '#f9fafb',
-  backgroundTertiary: '#f3f4f6',
+  background: '#FFFFFF',
+  backgroundSecondary: '#F7F7F7',
+  backgroundTertiary: '#EEEEEE',
   
-  border: '#e5e7eb',
-  borderLight: '#f3f4f6',
+  border: '#E5E5E5',
+  borderLight: '#F0F0F0',
   
-  white: '#ffffff',
+  white: '#FFFFFF',
   black: '#000000',
   
-  paid: '#10b981',
-  unpaid: '#f59e0b',
-  overdue: '#ef4444',
+  paid: '#34C759',
+  unpaid: '#666666',
+  overdue: '#FF3B30',
 };
 
 export const Typography = {
@@ -60,10 +60,10 @@ export const Spacing = {
 };
 
 export const BorderRadius = {
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 18,
   full: 9999,
 };
 

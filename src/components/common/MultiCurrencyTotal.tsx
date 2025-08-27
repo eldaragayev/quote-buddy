@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing } from '../../styles/theme';
+import { Colors, Typography, Spacing, BorderRadius } from '../../styles/theme';
 import { formatCurrency } from '../../utils/formatters';
 
 interface CurrencyTotal {
@@ -61,11 +61,12 @@ export const MultiCurrencyTotal: React.FC<MultiCurrencyTotalProps> = ({ totals }
 
 const styles = StyleSheet.create({
   container: {
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.lg,
   },
   mainRow: {
     flexDirection: 'row',
@@ -73,9 +74,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
-    color: Colors.text,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
   },
   totalContainer: {
     flexDirection: 'row',
@@ -83,15 +86,16 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   total: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.primary,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    letterSpacing: -0.5,
   },
   expandedContent: {
     marginTop: Spacing.md,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    borderTopColor: Colors.border,
   },
   currencyRow: {
     flexDirection: 'row',
@@ -101,10 +105,12 @@ const styles = StyleSheet.create({
   currencyLabel: {
     fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
+    letterSpacing: 0.2,
   },
   currencyAmount: {
     fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
+    letterSpacing: -0.2,
   },
 });

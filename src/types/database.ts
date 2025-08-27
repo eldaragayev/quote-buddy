@@ -7,6 +7,7 @@ export interface User {
 export interface Settings {
   id?: number;
   default_currency_code?: string;
+  default_tax_id?: number;
 }
 
 export interface Issuer {
@@ -48,6 +49,7 @@ export interface Tax {
   id?: number;
   name: string;
   rate_percent: number;
+  is_default?: number;
 }
 
 export interface Item {

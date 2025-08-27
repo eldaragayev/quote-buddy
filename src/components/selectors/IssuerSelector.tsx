@@ -165,7 +165,7 @@ export const IssuerSelector: React.FC<IssuerSelectorProps> = ({
     const isSelected = selectedIssuer?.id === item.id;
     
     return (
-      <View style={styles.issuerItemContainer}>
+      <View style={styles.issuerCard}>
         <TouchableOpacity
           style={[styles.issuerItem, isSelected && styles.issuerItemSelected]}
           onPress={() => {
@@ -173,28 +173,41 @@ export const IssuerSelector: React.FC<IssuerSelectorProps> = ({
             handleClose();
           }}
         >
-          <View style={styles.issuerInfo}>
-            <View style={styles.issuerHeader}>
-              <Text style={styles.issuerName}>{item.company_name}</Text>
-              {item.is_default === 1 && (
-                <View style={styles.defaultBadge}>
-                  <Text style={styles.defaultText}>DEFAULT</Text>
-                </View>
+          <View style={styles.issuerContent}>
+            <View style={styles.issuerInfo}>
+              <View style={styles.issuerHeader}>
+                <Text style={[styles.issuerName, isSelected && { color: Colors.white }]}>
+                  {item.company_name}
+                </Text>
+                {item.is_default === 1 && (
+                  <View style={[styles.defaultBadge, isSelected && { backgroundColor: Colors.white }]}>
+                    <Text style={[styles.defaultText, isSelected && { color: Colors.black }]}>DEFAULT</Text>
+                  </View>
+                )}
+              </View>
+              {item.contact_name && (
+                <Text style={[styles.issuerDetail, isSelected && { color: Colors.white, opacity: 0.9 }]}>
+                  {item.contact_name}
+                </Text>
+              )}
+              {item.email && (
+                <Text style={[styles.issuerDetail, isSelected && { color: Colors.white, opacity: 0.9 }]}>
+                  {item.email}
+                </Text>
+              )}
+              {item.address && (
+                <Text style={[styles.issuerDetail, isSelected && { color: Colors.white, opacity: 0.9 }]} numberOfLines={1}>
+                  {item.address}
+                </Text>
               )}
             </View>
-            {item.contact_name && (
-              <Text style={styles.issuerDetail}>{item.contact_name}</Text>
-            )}
-            {item.email && (
-              <Text style={styles.issuerDetail}>{item.email}</Text>
-            )}
-            {item.address && (
-              <Text style={styles.issuerDetail} numberOfLines={1}>{item.address}</Text>
-            )}
+            
+            <View style={styles.issuerRight}>
+              {isSelected && (
+                <Ionicons name="checkmark-circle" size={24} color={Colors.white} />
+              )}
+            </View>
           </View>
-          {isSelected && (
-            <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />
-          )}
         </TouchableOpacity>
         
         <View style={styles.issuerActions}>
@@ -202,7 +215,7 @@ export const IssuerSelector: React.FC<IssuerSelectorProps> = ({
             style={styles.actionButton}
             onPress={() => setEditingIssuer(item)}
           >
-            <Ionicons name="pencil" size={18} color={Colors.primary} />
+            <Ionicons name="create-outline" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
           
           {item.is_default === 0 && (
@@ -211,14 +224,14 @@ export const IssuerSelector: React.FC<IssuerSelectorProps> = ({
                 style={styles.actionButton}
                 onPress={() => handleSetDefault(item)}
               >
-                <Ionicons name="star-outline" size={18} color={Colors.warning} />
+                <Ionicons name="star-outline" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
               
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handleDeleteIssuer(item)}
               >
-                <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                <Ionicons name="trash-outline" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
             </>
           )}
@@ -256,7 +269,7 @@ export const IssuerSelector: React.FC<IssuerSelectorProps> = ({
               style={styles.createButton}
               onPress={() => setShowCreateForm(true)}
             >
-              <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+              <Ionicons name="add" size={20} color={Colors.white} />
               <Text style={styles.createButtonText}>Add New Issuer</Text>
             </TouchableOpacity>
 
@@ -352,90 +365,120 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
-    height: '90%',
-    maxHeight: '90%',
+    height: '75%',
+    maxHeight: '75%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   title: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
+    letterSpacing: -0.3,
   },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.black,
+    borderRadius: BorderRadius.lg,
+    justifyContent: 'center',
   },
   createButtonText: {
     fontSize: Typography.sizes.base,
-    color: Colors.primary,
-    fontWeight: Typography.weights.medium,
+    color: Colors.white,
+    fontWeight: Typography.weights.semibold,
   },
   listContent: {
     paddingBottom: Spacing.xl,
+    paddingTop: Spacing.sm,
   },
-  issuerItemContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+  issuerCard: {
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.sm,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   issuerItem: {
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+  },
+  issuerItemSelected: {
+    backgroundColor: Colors.black,
+  },
+  issuerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  issuerItemSelected: {
-    backgroundColor: Colors.backgroundSecondary,
+    paddingVertical: Spacing.lg,
   },
   issuerInfo: {
     flex: 1,
+  },
+  issuerRight: {
+    marginLeft: Spacing.md,
   },
   issuerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   issuerName: {
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
+    letterSpacing: -0.2,
   },
   defaultBadge: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.textSecondary,
     paddingHorizontal: Spacing.xs,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
   },
   defaultText: {
-    fontSize: Typography.sizes.xs,
+    fontSize: 10,
     fontWeight: Typography.weights.bold,
     color: Colors.white,
+    letterSpacing: 0.3,
   },
   issuerDetail: {
     fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
     marginTop: 2,
+    letterSpacing: -0.1,
   },
   issuerActions: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.md,
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: Spacing.xs,
   },
   actionButton: {
-    padding: Spacing.xs,
+    padding: Spacing.sm,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.md,
   },
   emptyState: {
     padding: Spacing.xxxl,
@@ -449,10 +492,11 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   input: {
+    backgroundColor: Colors.backgroundSecondary,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     marginBottom: Spacing.md,
     fontSize: Typography.sizes.base,
@@ -469,20 +513,22 @@ const styles = StyleSheet.create({
   },
   formButton: {
     flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: Colors.backgroundTertiary,
+    backgroundColor: Colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   cancelButtonText: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   saveButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.black,
   },
   saveButtonText: {
     fontSize: Typography.sizes.base,

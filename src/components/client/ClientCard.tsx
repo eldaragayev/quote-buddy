@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, BorderRadius } from '../../styles/theme';
+import { Colors, Typography, Spacing, BorderRadius, Shadow } from '../../styles/theme';
 import { Client } from '../../types/database';
 
 interface ClientCardProps {
@@ -32,90 +32,112 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onPress, onDelet
       style={styles.container}
       onPress={onPress}
       onLongPress={handleLongPress}
+      activeOpacity={0.7}
     >
-      <View style={styles.iconContainer}>
-        <Ionicons 
-          name={client.company_name ? "business" : "person"} 
-          size={24} 
-          color={Colors.primary} 
-        />
-      </View>
-      
       <View style={styles.content}>
-        <Text style={styles.name}>{client.name}</Text>
-        {client.company_name && (
-          <Text style={styles.company}>{client.company_name}</Text>
-        )}
+        <View style={styles.header}>
+          <View style={styles.nameSection}>
+            <Text style={styles.name}>{client.name}</Text>
+            {client.company_name && (
+              <View style={styles.companyBadge}>
+                <Ionicons name="business" size={12} color={Colors.textSecondary} />
+                <Text style={styles.company}>{client.company_name}</Text>
+              </View>
+            )}
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+        </View>
+        
         <View style={styles.details}>
           {client.email && (
             <View style={styles.detailRow}>
-              <Ionicons name="mail-outline" size={14} color={Colors.textSecondary} />
-              <Text style={styles.detailText}>{client.email}</Text>
+              <View style={styles.detailIcon}>
+                <Ionicons name="mail-outline" size={16} color={Colors.textSecondary} />
+              </View>
+              <Text style={styles.detailText} numberOfLines={1}>{client.email}</Text>
             </View>
           )}
           {client.phone && (
             <View style={styles.detailRow}>
-              <Ionicons name="call-outline" size={14} color={Colors.textSecondary} />
+              <View style={styles.detailIcon}>
+                <Ionicons name="call-outline" size={16} color={Colors.textSecondary} />
+              </View>
               <Text style={styles.detailText}>{client.phone}</Text>
+            </View>
+          )}
+          {client.address && (
+            <View style={styles.detailRow}>
+              <View style={styles.detailIcon}>
+                <Ionicons name="location-outline" size={16} color={Colors.textSecondary} />
+              </View>
+              <Text style={styles.detailText} numberOfLines={1}>{client.address}</Text>
             </View>
           )}
         </View>
       </View>
-      
-      <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: Colors.white,
-    padding: Spacing.md,
-    marginHorizontal: Spacing.md,
-    marginVertical: Spacing.xs,
-    borderRadius: BorderRadius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    ...Shadow.sm,
   },
   content: {
+    padding: Spacing.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.md,
+  },
+  nameSection: {
     flex: 1,
   },
   name: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
-    marginBottom: 2,
-  },
-  company: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
+    letterSpacing: -0.3,
     marginBottom: Spacing.xs,
   },
+  companyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.backgroundSecondary,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs / 2,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-start',
+  },
+  company: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.textSecondary,
+    fontWeight: Typography.weights.medium,
+  },
   details: {
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: 2,
+    marginBottom: Spacing.sm,
+  },
+  detailIcon: {
+    width: 24,
+    alignItems: 'center',
+    marginRight: Spacing.sm,
   },
   detailText: {
-    fontSize: Typography.sizes.xs,
+    fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
+    flex: 1,
+    letterSpacing: -0.1,
   },
 });

@@ -99,6 +99,11 @@ export const InvoiceCard: React.FC<InvoiceCardProps> = ({ invoice, onPress, onEd
           <Text style={styles.paidText}>PAID</Text>
         </View>
       )}
+      {!isPaid && isOverdue && (
+        <View style={[styles.paidBadge, { backgroundColor: Colors.danger }]}>
+          <Text style={styles.paidText}>OVERDUE</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
@@ -106,14 +111,18 @@ export const InvoiceCard: React.FC<InvoiceCardProps> = ({ invoice, onPress, onEd
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     marginHorizontal: Spacing.lg,
-    marginVertical: Spacing.xs,
+    marginVertical: Spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
   },
   leftContent: {
     flex: 1,
@@ -124,37 +133,45 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
+    letterSpacing: -0.2,
   },
   details: {
     fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
+    color: Colors.textLight,
+    letterSpacing: -0.1,
   },
   rightContent: {
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
   amount: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
     color: Colors.text,
     marginBottom: Spacing.xs,
+    letterSpacing: -0.3,
   },
   dueText: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.medium,
+    letterSpacing: 0.1,
+    textTransform: 'uppercase' as const,
   },
   paidBadge: {
     position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    backgroundColor: Colors.paid,
+    top: -1,
+    right: Spacing.lg,
+    backgroundColor: Colors.black,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: BorderRadius.sm,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   paidText: {
-    fontSize: Typography.sizes.xs,
+    fontSize: 10,
     fontWeight: Typography.weights.bold,
     color: Colors.white,
+    letterSpacing: 0.5,
   },
 });

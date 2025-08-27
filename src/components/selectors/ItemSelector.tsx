@@ -9,10 +9,11 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, BorderRadius } from '../../styles/theme';
+import { Colors, Typography, Spacing, BorderRadius, Shadow } from '../../styles/theme';
 import { Item, InvoiceItem } from '../../types/database';
 import { ItemModel } from '../../models/ItemModel';
 import { formatCurrency } from '../../utils/formatters';
@@ -156,20 +157,40 @@ export const ItemSelector: React.FC<ItemSelectorProps> = ({
 
   const renderItem = ({ item }: { item: Item }) => {
     return (
-      <TouchableOpacity
-        style={styles.itemRow}
-        onPress={() => handleSelectItem(item)}
-        onLongPress={() => handleDeleteItem(item)}
-      >
-        <View style={styles.itemInfo}>
-          <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.itemDetail}>
-            {formatCurrency(item.rate, currency)}
-            {item.unit ? ` / ${item.unit}` : ''}
-          </Text>
+      <View style={styles.itemCard}>
+        <TouchableOpacity
+          style={styles.itemContent}
+          onPress={() => handleSelectItem(item)}
+        >
+          <View style={styles.itemInfo}>
+            <Text style={styles.itemName}>{item.name}</Text>
+            <View style={styles.itemMeta}>
+              <Text style={styles.itemPrice}>
+                {formatCurrency(item.rate, currency)}
+              </Text>
+              {item.unit && (
+                <Text style={styles.itemUnit}>per {item.unit}</Text>
+              )}
+            </View>
+          </View>
+          <View style={styles.itemRight}>
+            <Text style={styles.itemTotal}>
+              {formatCurrency(item.rate * (parseFloat(quantity) || 1), currency)}
+            </Text>
+            <Text style={styles.itemQuantityText}>
+              × {quantity || '1'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        <View style={styles.itemActions}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleDeleteItem(item)}
+          >
+            <Ionicons name="trash-outline" size={18} color={Colors.textSecondary} />
+          </TouchableOpacity>
         </View>
-        <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -186,7 +207,9 @@ export const ItemSelector: React.FC<ItemSelectorProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Select Item</Text>
+          <Text style={styles.title}>
+            {showCreateForm ? 'Create Item' : 'Select Item'}
+          </Text>
           <TouchableOpacity onPress={handleClose}>
             <Ionicons name="close" size={24} color={Colors.text} />
           </TouchableOpacity>
@@ -194,39 +217,62 @@ export const ItemSelector: React.FC<ItemSelectorProps> = ({
 
         {!showCreateForm ? (
           <>
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color={Colors.textLight} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search items..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholderTextColor={Colors.textLight}
-              />
-            </View>
-
-            <View style={styles.quantityContainer}>
-              <Text style={styles.quantityLabel}>Quantity:</Text>
-              <TextInput
-                style={styles.quantityInput}
-                value={quantity}
-                onChangeText={setQuantity}
-                keyboardType="numeric"
-                placeholder="1"
-              />
-            </View>
-
             <TouchableOpacity
               style={styles.createButton}
               onPress={() => setShowCreateForm(true)}
             >
-              <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-              <Text style={styles.createButtonText}>Create New Item</Text>
+              <Ionicons name="add" size={20} color={Colors.white} />
+              <Text style={styles.createButtonText}>Add New Item</Text>
             </TouchableOpacity>
 
-            {filteredItems.length > 0 && (
-              <Text style={styles.hint}>Tap to add • Long press to delete</Text>
-            )}
+            <View style={styles.searchSection}>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color={Colors.textLight} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search items..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholderTextColor={Colors.textLight}
+                />
+                {searchQuery !== '' && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <Ionicons name="close-circle" size={18} color={Colors.textLight} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.quantityContainer}>
+                <Text style={styles.quantityLabel}>Qty</Text>
+                <View style={styles.quantityInputWrapper}>
+                  <TouchableOpacity 
+                    style={styles.quantityButton}
+                    onPress={() => {
+                      const qty = parseFloat(quantity) || 1;
+                      if (qty > 1) setQuantity((qty - 1).toString());
+                    }}
+                  >
+                    <Ionicons name="remove" size={18} color={Colors.text} />
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.quantityInput}
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    keyboardType="numeric"
+                    placeholder="1"
+                  />
+                  <TouchableOpacity 
+                    style={styles.quantityButton}
+                    onPress={() => {
+                      const qty = parseFloat(quantity) || 1;
+                      setQuantity((qty + 1).toString());
+                    }}
+                  >
+                    <Ionicons name="add" size={18} color={Colors.text} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
 
             <FlatList
               data={filteredItems}
@@ -243,9 +289,7 @@ export const ItemSelector: React.FC<ItemSelectorProps> = ({
             />
           </>
         ) : (
-          <View style={styles.createForm}>
-            <Text style={styles.formTitle}>Create New Item</Text>
-            
+          <ScrollView style={styles.createForm}>
             <TextInput
               style={styles.input}
               placeholder="Item Name *"
@@ -297,7 +341,7 @@ export const ItemSelector: React.FC<ItemSelectorProps> = ({
                 <Text style={styles.saveButtonText}>Create & Add</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         )}
       </KeyboardAvoidingView>
     </Modal>
@@ -313,32 +357,59 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
-    height: '90%',
-    maxHeight: '90%',
+    height: '75%',
+    maxHeight: '75%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   title: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.black,
+    borderRadius: BorderRadius.lg,
+    justifyContent: 'center',
+  },
+  createButtonText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.white,
+    fontWeight: Typography.weights.semibold,
+  },
+  searchSection: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.backgroundTertiary,
-    margin: Spacing.lg,
-    marginBottom: Spacing.sm,
+    backgroundColor: Colors.backgroundSecondary,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   searchInput: {
     flex: 1,
@@ -348,63 +419,101 @@ const styles = StyleSheet.create({
   quantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.md,
+    justifyContent: 'space-between',
   },
   quantityLabel: {
     fontSize: Typography.sizes.base,
     color: Colors.text,
     fontWeight: Typography.weights.medium,
   },
-  quantityInput: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    fontSize: Typography.sizes.base,
-    color: Colors.text,
-    minWidth: 60,
-  },
-  createButton: {
+  quantityInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  createButtonText: {
+  quantityButton: {
+    padding: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  quantityInput: {
+    paddingHorizontal: Spacing.sm,
     fontSize: Typography.sizes.base,
-    color: Colors.primary,
-    fontWeight: Typography.weights.medium,
+    color: Colors.text,
+    minWidth: 40,
+    textAlign: 'center',
   },
   listContent: {
     paddingBottom: Spacing.xl,
+    paddingTop: Spacing.sm,
   },
-  itemRow: {
+  itemCard: {
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.sm,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    ...Shadow.sm,
+  },
+  itemContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    paddingVertical: Spacing.lg,
   },
   itemInfo: {
     flex: 1,
   },
   itemName: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.2,
   },
-  itemDetail: {
+  itemMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  itemPrice: {
     fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
+    fontWeight: Typography.weights.medium,
+  },
+  itemUnit: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textLight,
+  },
+  itemRight: {
+    alignItems: 'flex-end',
+  },
+  itemTotal: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    letterSpacing: -0.2,
+  },
+  itemQuantityText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  itemActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: Spacing.xs,
+  },
+  actionButton: {
+    padding: Spacing.sm,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.md,
   },
   emptyState: {
     padding: Spacing.xxxl,
@@ -417,17 +526,12 @@ const styles = StyleSheet.create({
   createForm: {
     padding: Spacing.lg,
   },
-  formTitle: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
-    marginBottom: Spacing.lg,
-  },
   input: {
+    backgroundColor: Colors.backgroundSecondary,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     marginBottom: Spacing.md,
     fontSize: Typography.sizes.base,
@@ -447,20 +551,22 @@ const styles = StyleSheet.create({
   },
   formButton: {
     flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: Colors.backgroundTertiary,
+    backgroundColor: Colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   cancelButtonText: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   saveButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.black,
   },
   saveButtonText: {
     fontSize: Typography.sizes.base,

@@ -8,13 +8,14 @@ import {
   TextInput,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, BorderRadius } from '../../styles/theme';
+import { Colors, Typography, Spacing, BorderRadius, Shadow } from '../../styles/theme';
 import { InvoiceModel } from '../../models/InvoiceModel';
 import { IssuerModel } from '../../models/IssuerModel';
 import { SettingsModel } from '../../models/SettingsModel';
@@ -22,6 +23,9 @@ import { ClientSelector } from '../../components/selectors/ClientSelector';
 import { ItemSelector } from '../../components/selectors/ItemSelector';
 import { CurrencySelector } from '../../components/selectors/CurrencySelector';
 import { IssuerSelector } from '../../components/selectors/IssuerSelector';
+import { DueDatePicker } from '../../components/selectors/DueDatePicker';
+import { DatePickerModal } from '../../components/selectors/DatePickerModal';
+import { TaxSelector } from '../../components/selectors/TaxSelector';
 import { 
   Invoice, 
   InvoiceItem, 
@@ -31,7 +35,7 @@ import {
   DueOption,
   DiscountType 
 } from '../../types/database';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency, formatDate, getDueText } from '../../utils/formatters';
 import { calculateInvoiceTotal } from '../../utils/calculations';
 
 type InvoiceStackParamList = {
@@ -59,7 +63,7 @@ export const InvoiceDetailScreen = () => {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [discountType, setDiscountType] = useState<DiscountType | null>(null);
   const [discountValue, setDiscountValue] = useState<number>(0);
-  const [tax] = useState<Tax | null>(null);
+  const [tax, setTax] = useState<Tax | null>(null);
   const [publicNotes, setPublicNotes] = useState('');
   const [terms, setTerms] = useState('');
   const [poNumber, setPoNumber] = useState('');
@@ -67,6 +71,7 @@ export const InvoiceDetailScreen = () => {
   const [showItemSelector, setShowItemSelector] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showIssuerSelector, setShowIssuerSelector] = useState(false);
+  const [showTaxSelector, setShowTaxSelector] = useState(false);
   const [showIssuedDatePicker, setShowIssuedDatePicker] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [invoiceStatus, setInvoiceStatus] = useState<'paid' | 'unpaid'>('unpaid');
@@ -86,6 +91,15 @@ export const InvoiceDetailScreen = () => {
 
       const defaultCurrency = await SettingsModel.getDefaultCurrency();
       setCurrency(defaultCurrency);
+
+      // Load default tax for new invoices
+      if (!invoiceId) {
+        const { TaxModel } = await import('../../models/TaxModel');
+        const defaultTax = await TaxModel.getDefault();
+        if (defaultTax) {
+          setTax(defaultTax);
+        }
+      }
 
       if (invoiceId) {
         await loadInvoice(invoiceId);
@@ -130,6 +144,15 @@ export const InvoiceDetailScreen = () => {
             setIssuer(issuerData);
           }
         }
+        
+        // Load tax data
+        if (invoice.tax_id) {
+          const { TaxModel } = await import('../../models/TaxModel');
+          const taxData = await TaxModel.getById(invoice.tax_id);
+          if (taxData) {
+            setTax(taxData);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to load invoice:', error);
@@ -163,7 +186,7 @@ export const InvoiceDetailScreen = () => {
         due_option: dueOption,
         due_date: dueDate ? dueDate.toISOString().split('T')[0] : undefined,
         currency_code: currency,
-        status: 'unpaid',
+        status: isEditMode ? invoiceStatus : 'unpaid',
         discount_type: discountType || undefined,
         discount_value: discountValue || undefined,
         tax_id: tax?.id,
@@ -292,17 +315,40 @@ export const InvoiceDetailScreen = () => {
     Alert.alert('Invoice Actions', undefined, actions);
   };
 
-  const handleIssuedDateChange = (_event: any, selectedDate?: Date) => {
-    setShowIssuedDatePicker(false);
-    if (selectedDate) {
-      setIssuedDate(selectedDate);
+  const handleIssuedDateSelect = (selectedDate: Date) => {
+    setIssuedDate(selectedDate);
+    
+    // Recalculate due date based on current payment terms
+    if (dueOption !== 'custom' && dueOption !== 'none') {
+      const newDueDate = new Date(selectedDate);
+      
+      if (dueOption === 'on_receipt') {
+        setDueDate(newDueDate);
+      } else if (dueOption === 'net_7') {
+        newDueDate.setDate(newDueDate.getDate() + 7);
+        setDueDate(newDueDate);
+      } else if (dueOption === 'net_14') {
+        newDueDate.setDate(newDueDate.getDate() + 14);
+        setDueDate(newDueDate);
+      } else if (dueOption === 'net_30') {
+        newDueDate.setDate(newDueDate.getDate() + 30);
+        setDueDate(newDueDate);
+      }
     }
   };
 
-  const handleDueDateChange = (_event: any, selectedDate?: Date) => {
-    setShowDueDatePicker(false);
-    if (selectedDate) {
-      setDueDate(selectedDate);
+  const handleDueDateSelect = (days: number | null, customDate?: Date) => {
+    if (days !== null) {
+      const newDate = new Date(issuedDate);
+      newDate.setDate(newDate.getDate() + days);
+      setDueDate(newDate);
+      
+      if (days === 0) setDueOption('on_receipt');
+      else if (days === 7) setDueOption('net_7');
+      else if (days === 14) setDueOption('net_14');
+      else if (days === 30) setDueOption('net_30');
+    } else if (customDate) {
+      setDueDate(customDate);
       setDueOption('custom');
     }
   };
@@ -343,9 +389,16 @@ export const InvoiceDetailScreen = () => {
     tax?.rate_percent
   );
 
+  // Calculate if invoice is overdue
+  const dueStatusText = dueDate && invoiceStatus !== 'paid' 
+    ? getDueText(dueDate.toISOString().split('T')[0], invoiceStatus)
+    : null;
+  const isOverdue = dueStatusText && dueStatusText.includes('Overdue');
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
@@ -357,7 +410,16 @@ export const InvoiceDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <KeyboardAvoidingView 
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Invoice Info</Text>
@@ -387,24 +449,36 @@ export const InvoiceDetailScreen = () => {
             style={styles.field}
             onPress={() => setShowIssuedDatePicker(true)}
           >
-            <Text style={styles.fieldLabel}>Issued</Text>
-            <Text style={styles.fieldValue}>{formatDate(issuedDate)}</Text>
+            <Text style={styles.fieldLabel}>Invoice Date</Text>
+            <View style={styles.fieldValueContainer}>
+              <Text style={styles.fieldValue}>{formatDate(issuedDate)}</Text>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.field}
-            onPress={handleDueOptionChange}
-            onLongPress={() => dueOption === 'custom' && setShowDueDatePicker(true)}
+            onPress={() => setShowDueDatePicker(true)}
           >
-            <Text style={styles.fieldLabel}>Due</Text>
-            <Text style={styles.fieldValue}>
-              {dueOption === 'net_7' ? '7 days' :
-               dueOption === 'net_14' ? '14 days' :
-               dueOption === 'net_30' ? '30 days' :
-               dueOption === 'on_receipt' ? 'On receipt' :
-               dueOption === 'custom' && dueDate ? formatDate(dueDate) :
-               'None'}
-            </Text>
+            <View style={styles.fieldLabelContainer}>
+              <Text style={styles.fieldLabel}>Payment Terms</Text>
+              {isOverdue && (
+                <View style={styles.overdueBadge}>
+                  <Text style={styles.overdueText}>{dueStatusText}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.fieldValueContainer}>
+              <Text style={[styles.fieldValue, isOverdue && { color: Colors.danger }]}>
+                {dueOption === 'net_7' ? 'Net 7' :
+                 dueOption === 'net_14' ? 'Net 14' :
+                 dueOption === 'net_30' ? 'Net 30' :
+                 dueOption === 'on_receipt' ? 'Due on Receipt' :
+                 dueOption === 'custom' && dueDate ? formatDate(dueDate) :
+                 'Select'}
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -432,49 +506,78 @@ export const InvoiceDetailScreen = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Items</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Items</Text>
+            <TouchableOpacity style={styles.addItemButton} onPress={() => addItem()}>
+              <Ionicons name="add" size={18} color={Colors.white} />
+              <Text style={styles.addItemButtonText}>Add</Text>
+            </TouchableOpacity>
+          </View>
           
           {items.map((item, index) => (
-            <View key={index} style={styles.itemRow}>
-              <TextInput
-                style={[styles.itemInput, styles.itemName]}
-                value={item.name}
-                onChangeText={(text) => updateItem(index, { name: text })}
-                placeholder="Item name"
-              />
-              <TextInput
-                style={[styles.itemInput, styles.itemQty]}
-                value={item.qty ? item.qty.toString() : ''}
-                onChangeText={(text) => {
-                  const qty = text === '' ? 0 : parseFloat(text) || 0;
-                  updateItem(index, { qty });
-                }}
-                keyboardType="numeric"
-                placeholder="Qty"
-              />
-              <TextInput
-                style={[styles.itemInput, styles.itemRate]}
-                value={item.rate ? item.rate.toString() : ''}
-                onChangeText={(text) => {
-                  const rate = text === '' ? 0 : parseFloat(text) || 0;
-                  updateItem(index, { rate });
-                }}
-                keyboardType="numeric"
-                placeholder="Rate"
-              />
-              <Text style={styles.itemTotal}>
-                {formatCurrency(item.qty * item.rate, currency)}
-              </Text>
-              <TouchableOpacity onPress={() => removeItem(index)}>
-                <Ionicons name="trash-outline" size={20} color={Colors.danger} />
-              </TouchableOpacity>
+            <View key={index} style={styles.itemCard}>
+              <View style={styles.itemHeader}>
+                <TextInput
+                  style={styles.itemNameInput}
+                  value={item.name}
+                  onChangeText={(text) => updateItem(index, { name: text })}
+                  placeholder="Item description"
+                  placeholderTextColor={Colors.textLight}
+                />
+                <TouchableOpacity onPress={() => removeItem(index)} style={styles.deleteButton}>
+                  <Ionicons name="close-circle" size={22} color={Colors.textLight} />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.itemDetails}>
+                <View style={styles.itemDetailField}>
+                  <Text style={styles.itemDetailLabel}>Quantity</Text>
+                  <TextInput
+                    style={styles.itemDetailInput}
+                    value={item.qty ? item.qty.toString() : ''}
+                    onChangeText={(text) => {
+                      const qty = text === '' ? 0 : parseFloat(text) || 0;
+                      updateItem(index, { qty });
+                    }}
+                    keyboardType="numeric"
+                    placeholder="1"
+                    placeholderTextColor={Colors.textLight}
+                  />
+                </View>
+                
+                <View style={styles.itemDetailField}>
+                  <Text style={styles.itemDetailLabel}>Rate</Text>
+                  <TextInput
+                    style={styles.itemDetailInput}
+                    value={item.rate ? item.rate.toString() : ''}
+                    onChangeText={(text) => {
+                      const rate = text === '' ? 0 : parseFloat(text) || 0;
+                      updateItem(index, { rate });
+                    }}
+                    keyboardType="numeric"
+                    placeholder="0.00"
+                    placeholderTextColor={Colors.textLight}
+                  />
+                </View>
+                
+                <View style={styles.itemDetailField}>
+                  <Text style={styles.itemDetailLabel}>Total</Text>
+                  <View style={styles.itemTotalContainer}>
+                    <Text style={styles.itemTotalText}>
+                      {formatCurrency(item.qty * item.rate, currency)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </View>
           ))}
           
-          <TouchableOpacity style={styles.addButton} onPress={() => addItem()}>
-            <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-            <Text style={styles.addButtonText}>Add Item</Text>
-          </TouchableOpacity>
+          {items.length === 0 && (
+            <TouchableOpacity style={styles.emptyItemsButton} onPress={() => addItem()}>
+              <Ionicons name="add-circle-outline" size={24} color={Colors.textSecondary} />
+              <Text style={styles.emptyItemsText}>Add your first item</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -498,9 +601,22 @@ export const InvoiceDetailScreen = () => {
             </View>
           )}
 
+          <TouchableOpacity 
+            style={styles.summaryRow}
+            onPress={() => setShowTaxSelector(true)}
+          >
+            <Text style={styles.summaryLabel}>Tax</Text>
+            <View style={styles.fieldValueContainer}>
+              <Text style={[styles.summaryValue, { marginRight: Spacing.xs }]}>
+                {tax ? `${tax.name} (${tax.rate_percent}%)` : 'No tax'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+            </View>
+          </TouchableOpacity>
+
           {calculation.taxAmount > 0 && (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Tax</Text>
+              <Text style={styles.summaryLabel}></Text>
               <Text style={styles.summaryValue}>
                 {formatCurrency(calculation.taxAmount, currency)}
               </Text>
@@ -538,7 +654,8 @@ export const InvoiceDetailScreen = () => {
             numberOfLines={3}
           />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={styles.bottomBar}>
         <TouchableOpacity 
@@ -546,8 +663,13 @@ export const InvoiceDetailScreen = () => {
           onPress={handleSave}
           disabled={loading}
         >
+          <Ionicons 
+            name={loading ? "hourglass-outline" : isEditMode ? "checkmark" : "add"} 
+            size={20} 
+            color={Colors.white} 
+          />
           <Text style={styles.primaryButtonText}>
-            {loading ? 'Saving...' : isEditMode ? 'Save' : 'Create'}
+            {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Invoice'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -596,54 +718,67 @@ export const InvoiceDetailScreen = () => {
         selectedIssuer={issuer}
       />
 
-      {showIssuedDatePicker && (
-        <DateTimePicker
-          value={issuedDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleIssuedDateChange}
-        />
-      )}
+      <DatePickerModal
+        isVisible={showIssuedDatePicker}
+        onClose={() => setShowIssuedDatePicker(false)}
+        onSelect={handleIssuedDateSelect}
+        currentDate={issuedDate}
+        title="Invoice Date"
+      />
 
-      {showDueDatePicker && (
-        <DateTimePicker
-          value={dueDate || new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDueDateChange}
-        />
-      )}
-    </SafeAreaView>
+      <DueDatePicker
+        isVisible={showDueDatePicker}
+        onClose={() => setShowDueDatePicker(false)}
+        onSelect={handleDueDateSelect}
+        currentDate={issuedDate}
+      />
+
+      <TaxSelector
+        isVisible={showTaxSelector}
+        onClose={() => setShowTaxSelector(false)}
+        onSelect={setTax}
+        selectedTax={tax}
+      />
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.backgroundSecondary,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.white,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.lg,
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   title: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.bold,
     color: Colors.text,
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 150,
+    flexGrow: 1,
+  },
   section: {
     backgroundColor: Colors.white,
-    marginBottom: Spacing.md,
-    padding: Spacing.lg,
+    marginBottom: 0,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -652,32 +787,121 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.semibold,
-    color: Colors.text,
+    color: Colors.textSecondary,
     marginBottom: Spacing.md,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   field: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.backgroundSecondary,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
   },
   fieldLabel: {
     fontSize: Typography.sizes.base,
     color: Colors.textSecondary,
+    flex: 1,
+  },
+  fieldLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
+  },
+  overdueBadge: {
+    backgroundColor: Colors.danger,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  overdueText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.bold,
+    color: Colors.white,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   fieldValue: {
     fontSize: Typography.sizes.base,
     color: Colors.text,
+  },
+  fieldValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   fieldInput: {
     fontSize: Typography.sizes.base,
     color: Colors.text,
     textAlign: 'right',
     flex: 1,
+  },
+  itemCard: {
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  itemNameInput: {
+    flex: 1,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text,
+    marginRight: Spacing.sm,
+  },
+  deleteButton: {
+    padding: Spacing.xs,
+  },
+  itemDetails: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  itemDetailField: {
+    flex: 1,
+  },
+  itemDetailLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  itemDetailInput: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: Typography.sizes.base,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  itemTotalContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  itemTotalText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    textAlign: 'center',
   },
   itemRow: {
     flexDirection: 'row',
@@ -716,7 +940,38 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: Typography.sizes.base,
-    color: Colors.primary,
+    color: Colors.black,
+    fontWeight: Typography.weights.medium,
+  },
+  addItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  addItemButtonText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.white,
+    fontWeight: Typography.weights.semibold,
+  },
+  emptyItemsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xl,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  emptyItemsText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
     fontWeight: Typography.weights.medium,
   },
   summaryRow: {
@@ -759,16 +1014,21 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   bottomBar: {
-    backgroundColor: Colors.white,
-    padding: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    position: 'absolute',
+    bottom: 0,
+    left: Spacing.xl,
+    right: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
   primaryButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.black,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    ...Shadow.md,
   },
   primaryButtonText: {
     fontSize: Typography.sizes.base,
