@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,42 +9,56 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
-} from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, BorderRadius, Shadow } from '../../styles/theme';
-import { InvoiceModel } from '../../models/InvoiceModel';
-import { IssuerModel } from '../../models/IssuerModel';
-import { SettingsModel } from '../../models/SettingsModel';
-import { ClientSelector } from '../../components/selectors/ClientSelector';
-import { ItemSelector } from '../../components/selectors/ItemSelector';
-import { CurrencySelector } from '../../components/selectors/CurrencySelector';
-import { IssuerSelector } from '../../components/selectors/IssuerSelector';
-import { DueDatePicker } from '../../components/selectors/DueDatePicker';
-import { DatePickerModal } from '../../components/selectors/DatePickerModal';
-import { TaxSelector } from '../../components/selectors/TaxSelector';
-import { 
-  Invoice, 
-  InvoiceItem, 
-  Client, 
-  Issuer, 
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  Colors,
+  Typography,
+  Spacing,
+  BorderRadius,
+  Shadow,
+} from "../../styles/theme";
+import { InvoiceModel } from "../../models/InvoiceModel";
+import { IssuerModel } from "../../models/IssuerModel";
+import { SettingsModel } from "../../models/SettingsModel";
+import { ClientSelector } from "../../components/selectors/ClientSelector";
+import { ItemSelector } from "../../components/selectors/ItemSelector";
+import { CurrencySelector } from "../../components/selectors/CurrencySelector";
+import { IssuerSelector } from "../../components/selectors/IssuerSelector";
+import { DueDatePicker } from "../../components/selectors/DueDatePicker";
+import { DatePickerModal } from "../../components/selectors/DatePickerModal";
+import { TaxSelector } from "../../components/selectors/TaxSelector";
+import {
+  Invoice,
+  InvoiceItem,
+  Client,
+  Issuer,
   Tax,
   DueOption,
-  DiscountType 
-} from '../../types/database';
-import { formatCurrency, formatDate, getDueText } from '../../utils/formatters';
-import { calculateInvoiceTotal } from '../../utils/calculations';
+  DiscountType,
+} from "../../types/database";
+import { formatCurrency, formatDate, getDueText } from "../../utils/formatters";
+import { calculateInvoiceTotal } from "../../utils/calculations";
+import { pdfService } from "../../services/PDFService";
 
 type InvoiceStackParamList = {
   InvoicesList: undefined;
   InvoiceDetail: { invoiceId?: number };
+  InvoicePreview: {
+    invoiceData: any;
+    invoiceNumber: number;
+  };
 };
 
-type NavigationProp = StackNavigationProp<InvoiceStackParamList, 'InvoiceDetail'>;
-type RoutePropType = RouteProp<InvoiceStackParamList, 'InvoiceDetail'>;
+type NavigationProp = StackNavigationProp<
+  InvoiceStackParamList,
+  "InvoiceDetail"
+>;
+type RoutePropType = RouteProp<InvoiceStackParamList, "InvoiceDetail">;
 
 export const InvoiceDetailScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -57,16 +71,16 @@ export const InvoiceDetailScreen = () => {
   const [client, setClient] = useState<Client | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState(1);
   const [issuedDate, setIssuedDate] = useState(new Date());
-  const [dueOption, setDueOption] = useState<DueOption>('net_30');
+  const [dueOption, setDueOption] = useState<DueOption>("net_30");
   const [dueDate, setDueDate] = useState<Date | null>(null);
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState("USD");
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [discountType, setDiscountType] = useState<DiscountType | null>(null);
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [tax, setTax] = useState<Tax | null>(null);
-  const [publicNotes, setPublicNotes] = useState('');
-  const [terms, setTerms] = useState('');
-  const [poNumber, setPoNumber] = useState('');
+  const [publicNotes, setPublicNotes] = useState("");
+  const [terms, setTerms] = useState("");
+  const [poNumber, setPoNumber] = useState("");
   const [showClientSelector, setShowClientSelector] = useState(false);
   const [showItemSelector, setShowItemSelector] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
@@ -74,7 +88,13 @@ export const InvoiceDetailScreen = () => {
   const [showTaxSelector, setShowTaxSelector] = useState(false);
   const [showIssuedDatePicker, setShowIssuedDatePicker] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
-  const [invoiceStatus, setInvoiceStatus] = useState<'paid' | 'unpaid'>('unpaid');
+  const [invoiceStatus, setInvoiceStatus] = useState<"paid" | "unpaid">(
+    "unpaid"
+  );
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [saveButtonState, setSaveButtonState] = useState<
+    "normal" | "saving" | "saved"
+  >("normal");
 
   useEffect(() => {
     loadInitialData();
@@ -85,7 +105,9 @@ export const InvoiceDetailScreen = () => {
       const defaultIssuer = await IssuerModel.getDefault();
       if (defaultIssuer) {
         setIssuer(defaultIssuer);
-        const nextNumber = await InvoiceModel.getNextInvoiceNumber(defaultIssuer.id!);
+        const nextNumber = await InvoiceModel.getNextInvoiceNumber(
+          defaultIssuer.id!
+        );
         setInvoiceNumber(nextNumber);
       }
 
@@ -94,7 +116,7 @@ export const InvoiceDetailScreen = () => {
 
       // Load default tax for new invoices
       if (!invoiceId) {
-        const { TaxModel } = await import('../../models/TaxModel');
+        const { TaxModel } = await import("../../models/TaxModel");
         const defaultTax = await TaxModel.getDefault();
         if (defaultTax) {
           setTax(defaultTax);
@@ -105,7 +127,7 @@ export const InvoiceDetailScreen = () => {
         await loadInvoice(invoiceId);
       }
     } catch (error) {
-      console.error('Failed to load initial data:', error);
+      console.error("Failed to load initial data:", error);
     }
   };
 
@@ -123,20 +145,20 @@ export const InvoiceDetailScreen = () => {
         setItems(invoice.items || []);
         setDiscountType(invoice.discount_type || null);
         setDiscountValue(invoice.discount_value || 0);
-        setPublicNotes(invoice.public_notes || '');
-        setTerms(invoice.terms || '');
-        setPoNumber(invoice.po_number || '');
-        setInvoiceStatus(invoice.status || 'unpaid');
-        
+        setPublicNotes(invoice.public_notes || "");
+        setTerms(invoice.terms || "");
+        setPoNumber(invoice.po_number || "");
+        setInvoiceStatus(invoice.status || "unpaid");
+
         // Load client data
         if (invoice.client_id) {
-          const { ClientModel } = await import('../../models/ClientModel');
+          const { ClientModel } = await import("../../models/ClientModel");
           const clientData = await ClientModel.getById(invoice.client_id);
           if (clientData) {
             setClient(clientData);
           }
         }
-        
+
         // Load issuer data
         if (invoice.issuer_id) {
           const issuerData = await IssuerModel.getById(invoice.issuer_id);
@@ -144,10 +166,10 @@ export const InvoiceDetailScreen = () => {
             setIssuer(issuerData);
           }
         }
-        
+
         // Load tax data
         if (invoice.tax_id) {
-          const { TaxModel } = await import('../../models/TaxModel');
+          const { TaxModel } = await import("../../models/TaxModel");
           const taxData = await TaxModel.getById(invoice.tax_id);
           if (taxData) {
             setTax(taxData);
@@ -155,39 +177,40 @@ export const InvoiceDetailScreen = () => {
         }
       }
     } catch (error) {
-      console.error('Failed to load invoice:', error);
-      Alert.alert('Error', 'Failed to load invoice');
+      console.error("Failed to load invoice:", error);
+      Alert.alert("Error", "Failed to load invoice");
     }
   };
 
   const handleSave = async () => {
     if (!issuer) {
-      Alert.alert('Error', 'Please select an issuer');
+      Alert.alert("Error", "Please select an issuer");
       return;
     }
 
     if (!client) {
-      Alert.alert('Error', 'Please select a client');
+      Alert.alert("Error", "Please select a client");
       return;
     }
 
     if (items.length === 0) {
-      Alert.alert('Error', 'Please add at least one item');
+      Alert.alert("Error", "Please add at least one item");
       return;
     }
 
+    setSaveButtonState("saving");
     setLoading(true);
     try {
-      const invoiceData: Omit<Invoice, 'id'> = {
+      const invoiceData: Omit<Invoice, "id"> = {
         issuer_id: issuer.id!,
         client_id: client.id!,
         number: invoiceNumber,
-        issued_date: issuedDate.toISOString().split('T')[0],
+        issued_date: issuedDate.toISOString().split("T")[0],
         due_option: dueOption,
-        due_date: dueDate ? dueDate.toISOString().split('T')[0] : undefined,
+        due_date: dueDate ? dueDate.toISOString().split("T")[0] : undefined,
         currency_code: currency,
-        status: isEditMode ? invoiceStatus : 'unpaid',
-        discount_type: discountType || undefined,
+        status: isEditMode ? invoiceStatus : "unpaid",
+        discount_type: discountType ?? undefined,
         discount_value: discountValue || undefined,
         tax_id: tax?.id,
         public_notes: publicNotes || undefined,
@@ -197,7 +220,7 @@ export const InvoiceDetailScreen = () => {
 
       if (isEditMode && invoiceId) {
         await InvoiceModel.update(invoiceId, invoiceData);
-        
+
         // Delete existing items and re-add them
         const existingItems = await InvoiceModel.getItemsByInvoiceId(invoiceId);
         for (const item of existingItems) {
@@ -205,7 +228,7 @@ export const InvoiceDetailScreen = () => {
             await InvoiceModel.deleteItem(item.id);
           }
         }
-        
+
         // Add updated items
         for (let i = 0; i < items.length; i++) {
           await InvoiceModel.addItem({
@@ -231,11 +254,19 @@ export const InvoiceDetailScreen = () => {
         }
       }
 
-      // Force refresh on the list screen
-      navigation.navigate('InvoicesList' as any);
+      // Show success state
+      setSaveButtonState("saved");
+
+      // Reset to normal state after 2 seconds
+      setTimeout(() => {
+        setSaveButtonState("normal");
+      }, 2000);
+
+      // Don't navigate away - stay on current screen
     } catch (error) {
-      console.error('Failed to save invoice:', error);
-      Alert.alert('Error', 'Failed to save invoice');
+      console.error("Failed to save invoice:", error);
+      Alert.alert("Error", "Failed to save invoice");
+      setSaveButtonState("normal");
     } finally {
       setLoading(false);
     }
@@ -262,75 +293,75 @@ export const InvoiceDetailScreen = () => {
 
   const handleShowActions = () => {
     if (!isEditMode) return;
-    
+
     const actions = [
-      { 
-        text: invoiceStatus === 'paid' ? 'Mark as Unpaid' : 'Mark as Paid',
+      {
+        text: invoiceStatus === "paid" ? "Mark as Unpaid" : "Mark as Paid",
         onPress: async () => {
           if (invoiceId) {
             try {
-              if (invoiceStatus === 'paid') {
+              if (invoiceStatus === "paid") {
                 await InvoiceModel.markUnpaid(invoiceId);
-                setInvoiceStatus('unpaid');
+                setInvoiceStatus("unpaid");
               } else {
                 await InvoiceModel.markPaid(invoiceId);
-                setInvoiceStatus('paid');
+                setInvoiceStatus("paid");
               }
             } catch (error) {
-              Alert.alert('Error', 'Failed to update invoice status');
+              Alert.alert("Error", "Failed to update invoice status");
             }
           }
-        }
+        },
       },
       {
-        text: 'Delete Invoice',
+        text: "Delete Invoice",
         onPress: () => {
           Alert.alert(
-            'Delete Invoice',
-            'Are you sure you want to delete this invoice?',
+            "Delete Invoice",
+            "Are you sure you want to delete this invoice?",
             [
-              { text: 'Cancel', style: 'cancel' },
+              { text: "Cancel", style: "cancel" },
               {
-                text: 'Delete',
-                style: 'destructive',
+                text: "Delete",
+                style: "destructive",
                 onPress: async () => {
                   if (invoiceId) {
                     try {
                       await InvoiceModel.delete(invoiceId);
                       navigation.goBack();
                     } catch (error) {
-                      Alert.alert('Error', 'Failed to delete invoice');
+                      Alert.alert("Error", "Failed to delete invoice");
                     }
                   }
-                }
-              }
+                },
+              },
             ]
           );
         },
-        style: 'destructive' as const
+        style: "destructive" as const,
       },
-      { text: 'Cancel', style: 'cancel' as const }
+      { text: "Cancel", style: "cancel" as const },
     ];
-    
-    Alert.alert('Invoice Actions', undefined, actions);
+
+    Alert.alert("Invoice Actions", undefined, actions);
   };
 
   const handleIssuedDateSelect = (selectedDate: Date) => {
     setIssuedDate(selectedDate);
-    
+
     // Recalculate due date based on current payment terms
-    if (dueOption !== 'custom' && dueOption !== 'none') {
+    if (dueOption !== "custom" && dueOption !== "none") {
       const newDueDate = new Date(selectedDate);
-      
-      if (dueOption === 'on_receipt') {
+
+      if (dueOption === "on_receipt") {
         setDueDate(newDueDate);
-      } else if (dueOption === 'net_7') {
+      } else if (dueOption === "net_7") {
         newDueDate.setDate(newDueDate.getDate() + 7);
         setDueDate(newDueDate);
-      } else if (dueOption === 'net_14') {
+      } else if (dueOption === "net_14") {
         newDueDate.setDate(newDueDate.getDate() + 14);
         setDueDate(newDueDate);
-      } else if (dueOption === 'net_30') {
+      } else if (dueOption === "net_30") {
         newDueDate.setDate(newDueDate.getDate() + 30);
         setDueDate(newDueDate);
       }
@@ -342,43 +373,130 @@ export const InvoiceDetailScreen = () => {
       const newDate = new Date(issuedDate);
       newDate.setDate(newDate.getDate() + days);
       setDueDate(newDate);
-      
-      if (days === 0) setDueOption('on_receipt');
-      else if (days === 7) setDueOption('net_7');
-      else if (days === 14) setDueOption('net_14');
-      else if (days === 30) setDueOption('net_30');
+
+      if (days === 0) setDueOption("on_receipt");
+      else if (days === 7) setDueOption("net_7");
+      else if (days === 14) setDueOption("net_14");
+      else if (days === 30) setDueOption("net_30");
     } else if (customDate) {
       setDueDate(customDate);
-      setDueOption('custom');
+      setDueOption("custom");
     }
   };
 
   const handleDueOptionChange = () => {
-    const options = ['none', 'on_receipt', 'net_7', 'net_14', 'net_30', 'custom'] as DueOption[];
+    const options = [
+      "none",
+      "on_receipt",
+      "net_7",
+      "net_14",
+      "net_30",
+      "custom",
+    ] as DueOption[];
     const currentIndex = options.indexOf(dueOption);
     const nextIndex = (currentIndex + 1) % options.length;
     const nextOption = options[nextIndex];
-    
+
     setDueOption(nextOption);
-    
-    if (nextOption === 'custom') {
+
+    if (nextOption === "custom") {
       setShowDueDatePicker(true);
-    } else if (nextOption === 'none') {
+    } else if (nextOption === "none") {
       setDueDate(null);
     } else {
       const date = new Date(issuedDate);
-      if (nextOption === 'on_receipt') {
+      if (nextOption === "on_receipt") {
         setDueDate(date);
-      } else if (nextOption === 'net_7') {
+      } else if (nextOption === "net_7") {
         date.setDate(date.getDate() + 7);
         setDueDate(date);
-      } else if (nextOption === 'net_14') {
+      } else if (nextOption === "net_14") {
         date.setDate(date.getDate() + 14);
         setDueDate(date);
-      } else if (nextOption === 'net_30') {
+      } else if (nextOption === "net_30") {
         date.setDate(date.getDate() + 30);
         setDueDate(date);
       }
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    if (!issuer || !client || items.length === 0) {
+      Alert.alert(
+        "Error",
+        "Please complete all invoice details before generating PDF"
+      );
+      return;
+    }
+
+    setGeneratingPDF(true);
+
+    try {
+      // Create invoice object for PDF generation
+      const invoiceData = {
+        id: invoiceId,
+        issuer_id: issuer.id!,
+        client_id: client.id!,
+        number: invoiceNumber,
+        issued_date: issuedDate.toISOString().split("T")[0],
+        due_option: dueOption,
+        due_date: dueDate?.toISOString().split("T")[0],
+        currency_code: currency,
+        status: invoiceStatus,
+        discount_type: discountType ?? undefined,
+        discount_value: discountValue,
+        tax_id: tax?.id,
+        public_notes: publicNotes,
+        terms: terms,
+        po_number: poNumber,
+      };
+
+      // Navigate to PDF preview screen
+      navigation.navigate("InvoicePreview", {
+        invoiceData: {
+          invoice: invoiceData,
+          client: client,
+          issuer: issuer,
+          items: items,
+          tax: tax,
+          currency: currency,
+        },
+        invoiceNumber: invoiceNumber,
+      });
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+
+      let errorMessage = "Failed to generate PDF";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
+  const handleSharePDF = async (pdfUri: string) => {
+    try {
+      await pdfService.shareInvoicePDF(pdfUri, invoiceNumber);
+    } catch (error) {
+      console.error("Share failed:", error);
+      Alert.alert("Error", "Failed to share PDF");
+    }
+  };
+
+  const handleSavePDF = async (pdfUri: string) => {
+    try {
+      const filename = `invoice_${invoiceNumber}.pdf`;
+      const saved = await pdfService.saveInvoiceToDisk(pdfUri, filename);
+
+      if (saved) {
+        Alert.alert("Success", "PDF saved to your device successfully");
+      }
+    } catch (error) {
+      console.error("Save failed:", error);
+      Alert.alert("Error", "Failed to save PDF to device");
     }
   };
 
@@ -390,355 +508,450 @@ export const InvoiceDetailScreen = () => {
   );
 
   // Calculate if invoice is overdue
-  const dueStatusText = dueDate && invoiceStatus !== 'paid' 
-    ? getDueText(dueDate.toISOString().split('T')[0], invoiceStatus)
-    : null;
-  const isOverdue = dueStatusText && dueStatusText.includes('Overdue');
+  const dueStatusText =
+    dueDate && invoiceStatus !== "paid"
+      ? getDueText(dueDate.toISOString().split("T")[0], invoiceStatus)
+      : null;
+  const isOverdue = dueStatusText && dueStatusText.includes("Overdue");
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {isEditMode ? `Invoice #${invoiceNumber}` : 'Create Invoice'}
-        </Text>
-        <TouchableOpacity onPress={handleShowActions}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={Colors.text} />
-        </TouchableOpacity>
-      </View>
-
-      <KeyboardAvoidingView 
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Invoice Info</Text>
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.field}
-            onPress={() => setShowIssuerSelector(true)}
-          >
-            <Text style={styles.fieldLabel}>Issuer</Text>
-            <Text style={styles.fieldValue}>
-              {issuer?.company_name || 'Select issuer'}
-            </Text>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={Colors.text} />
           </TouchableOpacity>
-
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Number</Text>
-            <TextInput
-              style={styles.fieldInput}
-              value={invoiceNumber.toString()}
-              onChangeText={(text) => setInvoiceNumber(parseInt(text) || 1)}
-              keyboardType="numeric"
+          <Text style={styles.title}>
+            {isEditMode ? `Invoice #${invoiceNumber}` : "Create Invoice"}
+          </Text>
+          <TouchableOpacity onPress={handleShowActions}>
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={24}
+              color={Colors.text}
             />
-          </View>
-
-          <TouchableOpacity 
-            style={styles.field}
-            onPress={() => setShowIssuedDatePicker(true)}
-          >
-            <Text style={styles.fieldLabel}>Invoice Date</Text>
-            <View style={styles.fieldValueContainer}>
-              <Text style={styles.fieldValue}>{formatDate(issuedDate)}</Text>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.field}
-            onPress={() => setShowDueDatePicker(true)}
-          >
-            <View style={styles.fieldLabelContainer}>
-              <Text style={styles.fieldLabel}>Payment Terms</Text>
-              {isOverdue && (
-                <View style={styles.overdueBadge}>
-                  <Text style={styles.overdueText}>{dueStatusText}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.fieldValueContainer}>
-              <Text style={[styles.fieldValue, isOverdue && { color: Colors.danger }]}>
-                {dueOption === 'net_7' ? 'Net 7' :
-                 dueOption === 'net_14' ? 'Net 14' :
-                 dueOption === 'net_30' ? 'Net 30' :
-                 dueOption === 'on_receipt' ? 'Due on Receipt' :
-                 dueOption === 'custom' && dueDate ? formatDate(dueDate) :
-                 'Select'}
-              </Text>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.field}
-            onPress={() => setShowCurrencySelector(true)}
-          >
-            <Text style={styles.fieldLabel}>Currency</Text>
-            <Text style={styles.fieldValue}>{currency}</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Client</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.field}
-            onPress={() => setShowClientSelector(true)}
+        <KeyboardAvoidingView
+          style={styles.content}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.fieldValue}>
-              {client?.name || 'Select client'}
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
-          </TouchableOpacity>
-        </View>
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Invoice Info</Text>
+              </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Items</Text>
-            <TouchableOpacity style={styles.addItemButton} onPress={() => addItem()}>
-              <Ionicons name="add" size={18} color={Colors.white} />
-              <Text style={styles.addItemButtonText}>Add</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {items.map((item, index) => (
-            <View key={index} style={styles.itemCard}>
-              <View style={styles.itemHeader}>
+              <TouchableOpacity
+                style={styles.field}
+                onPress={() => setShowIssuerSelector(true)}
+              >
+                <Text style={styles.fieldLabel}>Issuer</Text>
+                <Text style={styles.fieldValue}>
+                  {issuer?.company_name || "Select issuer"}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Number</Text>
                 <TextInput
-                  style={styles.itemNameInput}
-                  value={item.name}
-                  onChangeText={(text) => updateItem(index, { name: text })}
-                  placeholder="Item description"
-                  placeholderTextColor={Colors.textLight}
+                  style={styles.fieldInput}
+                  value={invoiceNumber.toString()}
+                  onChangeText={(text) => setInvoiceNumber(parseInt(text) || 1)}
+                  keyboardType="numeric"
                 />
-                <TouchableOpacity onPress={() => removeItem(index)} style={styles.deleteButton}>
-                  <Ionicons name="close-circle" size={22} color={Colors.textLight} />
+              </View>
+
+              <TouchableOpacity
+                style={styles.field}
+                onPress={() => setShowIssuedDatePicker(true)}
+              >
+                <Text style={styles.fieldLabel}>Invoice Date</Text>
+                <View style={styles.fieldValueContainer}>
+                  <Text style={styles.fieldValue}>
+                    {formatDate(issuedDate)}
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={Colors.textLight}
+                  />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.field}
+                onPress={() => setShowDueDatePicker(true)}
+              >
+                <View style={styles.fieldLabelContainer}>
+                  <Text style={styles.fieldLabel}>Payment Terms</Text>
+                  {isOverdue && (
+                    <View style={styles.overdueBadge}>
+                      <Text style={styles.overdueText}>{dueStatusText}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.fieldValueContainer}>
+                  <Text
+                    style={[
+                      styles.fieldValue,
+                      isOverdue && { color: Colors.danger },
+                    ]}
+                  >
+                    {dueOption === "net_7"
+                      ? "Net 7"
+                      : dueOption === "net_14"
+                      ? "Net 14"
+                      : dueOption === "net_30"
+                      ? "Net 30"
+                      : dueOption === "on_receipt"
+                      ? "Due on Receipt"
+                      : dueOption === "custom" && dueDate
+                      ? formatDate(dueDate)
+                      : "Select"}
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={Colors.textLight}
+                  />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.field}
+                onPress={() => setShowCurrencySelector(true)}
+              >
+                <Text style={styles.fieldLabel}>Currency</Text>
+                <Text style={styles.fieldValue}>{currency}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Client</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.field}
+                onPress={() => setShowClientSelector(true)}
+              >
+                <Text style={styles.fieldValue}>
+                  {client?.name || "Select client"}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={Colors.textLight}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Items</Text>
+                <TouchableOpacity
+                  style={styles.addItemButton}
+                  onPress={() => addItem()}
+                >
+                  <Ionicons name="add" size={18} color={Colors.white} />
+                  <Text style={styles.addItemButtonText}>Add</Text>
                 </TouchableOpacity>
               </View>
-              
-              <View style={styles.itemDetails}>
-                <View style={styles.itemDetailField}>
-                  <Text style={styles.itemDetailLabel}>Quantity</Text>
-                  <TextInput
-                    style={styles.itemDetailInput}
-                    value={item.qty ? item.qty.toString() : ''}
-                    onChangeText={(text) => {
-                      const qty = text === '' ? 0 : parseFloat(text) || 0;
-                      updateItem(index, { qty });
-                    }}
-                    keyboardType="numeric"
-                    placeholder="1"
-                    placeholderTextColor={Colors.textLight}
-                  />
-                </View>
-                
-                <View style={styles.itemDetailField}>
-                  <Text style={styles.itemDetailLabel}>Rate</Text>
-                  <TextInput
-                    style={styles.itemDetailInput}
-                    value={item.rate ? item.rate.toString() : ''}
-                    onChangeText={(text) => {
-                      const rate = text === '' ? 0 : parseFloat(text) || 0;
-                      updateItem(index, { rate });
-                    }}
-                    keyboardType="numeric"
-                    placeholder="0.00"
-                    placeholderTextColor={Colors.textLight}
-                  />
-                </View>
-                
-                <View style={styles.itemDetailField}>
-                  <Text style={styles.itemDetailLabel}>Total</Text>
-                  <View style={styles.itemTotalContainer}>
-                    <Text style={styles.itemTotalText}>
-                      {formatCurrency(item.qty * item.rate, currency)}
-                    </Text>
+
+              {items.map((item, index) => (
+                <View key={index} style={styles.itemCard}>
+                  <View style={styles.itemHeader}>
+                    <TextInput
+                      style={styles.itemNameInput}
+                      value={item.name}
+                      onChangeText={(text) => updateItem(index, { name: text })}
+                      placeholder="Item description"
+                      placeholderTextColor={Colors.textLight}
+                    />
+                    <TouchableOpacity
+                      onPress={() => removeItem(index)}
+                      style={styles.deleteButton}
+                    >
+                      <Ionicons
+                        name="close-circle"
+                        size={22}
+                        color={Colors.textLight}
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.itemDetails}>
+                    <View style={styles.itemDetailField}>
+                      <Text style={styles.itemDetailLabel}>Quantity</Text>
+                      <TextInput
+                        style={styles.itemDetailInput}
+                        value={item.qty ? item.qty.toString() : ""}
+                        onChangeText={(text) => {
+                          const qty = text === "" ? 0 : parseFloat(text) || 0;
+                          updateItem(index, { qty });
+                        }}
+                        keyboardType="numeric"
+                        placeholder="1"
+                        placeholderTextColor={Colors.textLight}
+                      />
+                    </View>
+
+                    <View style={styles.itemDetailField}>
+                      <Text style={styles.itemDetailLabel}>Rate</Text>
+                      <TextInput
+                        style={styles.itemDetailInput}
+                        value={item.rate ? item.rate.toString() : ""}
+                        onChangeText={(text) => {
+                          const rate = text === "" ? 0 : parseFloat(text) || 0;
+                          updateItem(index, { rate });
+                        }}
+                        keyboardType="numeric"
+                        placeholder="0.00"
+                        placeholderTextColor={Colors.textLight}
+                      />
+                    </View>
+
+                    <View style={styles.itemDetailField}>
+                      <Text style={styles.itemDetailLabel}>Total</Text>
+                      <View style={styles.itemTotalContainer}>
+                        <Text style={styles.itemTotalText}>
+                          {formatCurrency(item.qty * item.rate, currency)}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
+              ))}
+
+              {items.length === 0 && (
+                <TouchableOpacity
+                  style={styles.emptyItemsButton}
+                  onPress={() => addItem()}
+                >
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={24}
+                    color={Colors.textSecondary}
+                  />
+                  <Text style={styles.emptyItemsText}>Add your first item</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Summary</Text>
+              </View>
+
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
+                <Text style={styles.summaryValue}>
+                  {formatCurrency(calculation.subtotal, currency)}
+                </Text>
+              </View>
+
+              {calculation.discountAmount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Discount</Text>
+                  <Text style={styles.summaryValue}>
+                    -{formatCurrency(calculation.discountAmount, currency)}
+                  </Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.summaryRow}
+                onPress={() => setShowTaxSelector(true)}
+              >
+                <Text style={styles.summaryLabel}>Tax</Text>
+                <View style={styles.fieldValueContainer}>
+                  <Text
+                    style={[styles.summaryValue, { marginRight: Spacing.xs }]}
+                  >
+                    {tax ? `${tax.name} (${tax.rate_percent}%)` : "No tax"}
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={Colors.textLight}
+                  />
+                </View>
+              </TouchableOpacity>
+
+              {calculation.taxAmount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}></Text>
+                  <Text style={styles.summaryValue}>
+                    {formatCurrency(calculation.taxAmount, currency)}
+                  </Text>
+                </View>
+              )}
+
+              <View style={[styles.summaryRow, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalValue}>
+                  {formatCurrency(calculation.total, currency)}
+                </Text>
               </View>
             </View>
-          ))}
-          
-          {items.length === 0 && (
-            <TouchableOpacity style={styles.emptyItemsButton} onPress={() => addItem()}>
-              <Ionicons name="add-circle-outline" size={24} color={Colors.textSecondary} />
-              <Text style={styles.emptyItemsText}>Add your first item</Text>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Notes & Terms</Text>
+              </View>
+
+              <TextInput
+                style={styles.textArea}
+                value={publicNotes}
+                onChangeText={setPublicNotes}
+                placeholder="Public notes (optional)"
+                multiline
+                numberOfLines={3}
+              />
+
+              <TextInput
+                style={styles.textArea}
+                value={terms}
+                onChangeText={setTerms}
+                placeholder="Terms (optional)"
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              loading && styles.buttonDisabled,
+              saveButtonState === "saved" && styles.successButton,
+            ]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            <Ionicons
+              name={
+                saveButtonState === "saved"
+                  ? "checkmark"
+                  : loading
+                  ? "hourglass-outline"
+                  : isEditMode
+                  ? "save-outline"
+                  : "add"
+              }
+              size={20}
+              color={Colors.white}
+            />
+            <Text style={styles.primaryButtonText}>
+              {saveButtonState === "saved"
+                ? "Saved"
+                : loading
+                ? "Saving..."
+                : isEditMode
+                ? "Save Changes"
+                : "Create Invoice"}
+            </Text>
+          </TouchableOpacity>
+
+          {/* PDF Generation Button - only show if we have enough data */}
+          {issuer && client && items.length > 0 && (
+            <TouchableOpacity
+              style={[
+                styles.secondaryButton,
+                generatingPDF && styles.buttonDisabled,
+              ]}
+              onPress={handleGeneratePDF}
+              disabled={generatingPDF}
+            >
+              <Ionicons
+                name={
+                  generatingPDF ? "hourglass-outline" : "document-text-outline"
+                }
+                size={20}
+                color={Colors.text}
+              />
+              <Text style={styles.secondaryButtonText}>
+                {generatingPDF ? "Generating..." : "Generate PDF"}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Summary</Text>
-          </View>
-          
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>
-              {formatCurrency(calculation.subtotal, currency)}
-            </Text>
-          </View>
+        <ClientSelector
+          isVisible={showClientSelector}
+          onClose={() => setShowClientSelector(false)}
+          onSelect={(selectedClient) => {
+            setClient(selectedClient);
+            setShowClientSelector(false);
+          }}
+          selectedClient={client}
+        />
 
-          {calculation.discountAmount > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Discount</Text>
-              <Text style={styles.summaryValue}>
-                -{formatCurrency(calculation.discountAmount, currency)}
-              </Text>
-            </View>
-          )}
+        <ItemSelector
+          isVisible={showItemSelector}
+          onClose={() => setShowItemSelector(false)}
+          onSelect={(item) => {
+            addItem(item);
+            setShowItemSelector(false);
+          }}
+          currency={currency}
+        />
 
-          <TouchableOpacity 
-            style={styles.summaryRow}
-            onPress={() => setShowTaxSelector(true)}
-          >
-            <Text style={styles.summaryLabel}>Tax</Text>
-            <View style={styles.fieldValueContainer}>
-              <Text style={[styles.summaryValue, { marginRight: Spacing.xs }]}>
-                {tax ? `${tax.name} (${tax.rate_percent}%)` : 'No tax'}
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
-            </View>
-          </TouchableOpacity>
+        <CurrencySelector
+          isVisible={showCurrencySelector}
+          onClose={() => setShowCurrencySelector(false)}
+          onSelect={(selectedCurrency) => {
+            setCurrency(selectedCurrency);
+            setShowCurrencySelector(false);
+          }}
+          selectedCurrency={currency}
+        />
 
-          {calculation.taxAmount > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}></Text>
-              <Text style={styles.summaryValue}>
-                {formatCurrency(calculation.taxAmount, currency)}
-              </Text>
-            </View>
-          )}
+        <IssuerSelector
+          isVisible={showIssuerSelector}
+          onClose={() => setShowIssuerSelector(false)}
+          onSelect={(selectedIssuer) => {
+            setIssuer(selectedIssuer);
+            if (selectedIssuer.id) {
+              InvoiceModel.getNextInvoiceNumber(selectedIssuer.id).then(
+                (nextNum) => {
+                  setInvoiceNumber(nextNum);
+                }
+              );
+            }
+          }}
+          selectedIssuer={issuer}
+        />
 
-          <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
-              {formatCurrency(calculation.total, currency)}
-            </Text>
-          </View>
-        </View>
+        <DatePickerModal
+          isVisible={showIssuedDatePicker}
+          onClose={() => setShowIssuedDatePicker(false)}
+          onSelect={handleIssuedDateSelect}
+          currentDate={issuedDate}
+          title="Invoice Date"
+        />
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Notes & Terms</Text>
-          </View>
-          
-          <TextInput
-            style={styles.textArea}
-            value={publicNotes}
-            onChangeText={setPublicNotes}
-            placeholder="Public notes (optional)"
-            multiline
-            numberOfLines={3}
-          />
-          
-          <TextInput
-            style={styles.textArea}
-            value={terms}
-            onChangeText={setTerms}
-            placeholder="Terms (optional)"
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        <DueDatePicker
+          isVisible={showDueDatePicker}
+          onClose={() => setShowDueDatePicker(false)}
+          onSelect={handleDueDateSelect}
+          currentDate={issuedDate}
+        />
 
-      <View style={styles.bottomBar}>
-        <TouchableOpacity 
-          style={[styles.primaryButton, loading && styles.buttonDisabled]}
-          onPress={handleSave}
-          disabled={loading}
-        >
-          <Ionicons 
-            name={loading ? "hourglass-outline" : isEditMode ? "checkmark" : "add"} 
-            size={20} 
-            color={Colors.white} 
-          />
-          <Text style={styles.primaryButtonText}>
-            {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Invoice'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ClientSelector
-        isVisible={showClientSelector}
-        onClose={() => setShowClientSelector(false)}
-        onSelect={(selectedClient) => {
-          setClient(selectedClient);
-          setShowClientSelector(false);
-        }}
-        selectedClient={client}
-      />
-
-      <ItemSelector
-        isVisible={showItemSelector}
-        onClose={() => setShowItemSelector(false)}
-        onSelect={(item) => {
-          addItem(item);
-          setShowItemSelector(false);
-        }}
-        currency={currency}
-      />
-
-      <CurrencySelector
-        isVisible={showCurrencySelector}
-        onClose={() => setShowCurrencySelector(false)}
-        onSelect={(selectedCurrency) => {
-          setCurrency(selectedCurrency);
-          setShowCurrencySelector(false);
-        }}
-        selectedCurrency={currency}
-      />
-
-      <IssuerSelector
-        isVisible={showIssuerSelector}
-        onClose={() => setShowIssuerSelector(false)}
-        onSelect={(selectedIssuer) => {
-          setIssuer(selectedIssuer);
-          if (selectedIssuer.id) {
-            InvoiceModel.getNextInvoiceNumber(selectedIssuer.id).then(nextNum => {
-              setInvoiceNumber(nextNum);
-            });
-          }
-        }}
-        selectedIssuer={issuer}
-      />
-
-      <DatePickerModal
-        isVisible={showIssuedDatePicker}
-        onClose={() => setShowIssuedDatePicker(false)}
-        onSelect={handleIssuedDateSelect}
-        currentDate={issuedDate}
-        title="Invoice Date"
-      />
-
-      <DueDatePicker
-        isVisible={showDueDatePicker}
-        onClose={() => setShowDueDatePicker(false)}
-        onSelect={handleDueDateSelect}
-        currentDate={issuedDate}
-      />
-
-      <TaxSelector
-        isVisible={showTaxSelector}
-        onClose={() => setShowTaxSelector(false)}
-        onSelect={setTax}
-        selectedTax={tax}
-      />
+        <TaxSelector
+          isVisible={showTaxSelector}
+          onClose={() => setShowTaxSelector(false)}
+          onSelect={setTax}
+          selectedTax={tax}
+        />
       </SafeAreaView>
     </View>
   );
@@ -753,9 +966,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.lg,
@@ -781,9 +994,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.md,
   },
   sectionTitle: {
@@ -791,13 +1004,13 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     color: Colors.textSecondary,
     marginBottom: Spacing.md,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   field: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: Spacing.md,
     backgroundColor: Colors.backgroundSecondary,
     marginBottom: Spacing.xs,
@@ -810,8 +1023,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fieldLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.sm,
     flex: 1,
   },
@@ -825,7 +1038,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.bold,
     color: Colors.white,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   fieldValue: {
@@ -833,14 +1046,14 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   fieldValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.xs,
   },
   fieldInput: {
     fontSize: Typography.sizes.base,
     color: Colors.text,
-    textAlign: 'right',
+    textAlign: "right",
     flex: 1,
   },
   itemCard: {
@@ -850,9 +1063,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.md,
   },
   itemNameInput: {
@@ -866,7 +1079,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
   },
   itemDetails: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.md,
   },
   itemDetailField: {
@@ -876,7 +1089,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   itemDetailInput: {
@@ -901,11 +1114,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
-    textAlign: 'center',
+    textAlign: "center",
   },
   itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
@@ -930,11 +1143,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
-    textAlign: 'right',
+    textAlign: "right",
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
   },
@@ -944,8 +1157,8 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
   },
   addItemButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.xs,
     backgroundColor: Colors.black,
     paddingHorizontal: Spacing.md,
@@ -958,16 +1171,16 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
   },
   emptyItemsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: Spacing.sm,
     paddingVertical: Spacing.xl,
     backgroundColor: Colors.backgroundSecondary,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
   },
   emptyItemsText: {
     fontSize: Typography.sizes.base,
@@ -975,8 +1188,8 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
   },
   summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: Spacing.xs,
   },
   summaryLabel: {
@@ -1011,22 +1224,25 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     fontSize: Typography.sizes.base,
     minHeight: 80,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   bottomBar: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: Spacing.xl,
     right: Spacing.xl,
     paddingBottom: Spacing.lg,
+    flexDirection: "column",
+    gap: Spacing.sm,
+    paddingTop: Spacing.md,
   },
   primaryButton: {
     backgroundColor: Colors.black,
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
     gap: Spacing.sm,
     ...Shadow.md,
   },
@@ -1035,7 +1251,27 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     color: Colors.white,
   },
+  secondaryButton: {
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadow.sm,
+  },
+  secondaryButtonText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+  },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  successButton: {
+    backgroundColor: "#34C759", // Green color
   },
 });
