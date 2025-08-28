@@ -5,10 +5,6 @@ import { calculateInvoiceTotal } from "../../utils/calculations";
 export class InvoiceTemplate {
   async generate(options: PDFGenerationOptions): Promise<string> {
     try {
-      console.log(
-        "Template generation started with options:",
-        JSON.stringify(options, null, 2)
-      );
       const { invoice, client, issuer, items, tax, currency } = options;
 
       // Calculate totals using existing utility
@@ -101,9 +97,13 @@ export class InvoiceTemplate {
             <div class="bill-to-column">
               <h3 class="section-title">BILL TO</h3>
               <div class="contact-details">
-                <div class="contact-name">${this.escapeHtml(
-                  client.name || ""
-                )}</div>
+                ${
+                  client.name
+                    ? `<div class="contact-name">${this.escapeHtml(
+                        client.name
+                      )}</div>`
+                    : '<div class="contact-name">Unnamed Client</div>'
+                }
                 ${
                   client.company_name
                     ? `<div class="company-name">${this.escapeHtml(
@@ -195,7 +195,7 @@ export class InvoiceTemplate {
                 ${items
                   .map(
                     (item: any, index: number) => `
-                  <tr class="${index % 2 === 0 ? "even" : "odd"}">
+                  <tr class="${index % 2 === 0 ? "even" : "odd"} ${this.getItemRowClass(index, items.length)}">
                     <td class="desc">${this.escapeHtml(item.name || "")}</td>
                     <td class="qty">${item.qty}</td>
                     <td class="rate">${formatCurrency(item.rate, currency)}</td>
@@ -306,10 +306,6 @@ export class InvoiceTemplate {
 
   private getStyles(): string {
     return `
-      @page { 
-        size: A4; 
-        margin: 0;
-      }
       
       * {
         box-sizing: border-box;
@@ -318,17 +314,12 @@ export class InvoiceTemplate {
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
         margin: 0;
-        padding: 0;
+        padding: 20px;
         color: #1d1d1f;
         font-size: 13px;
         line-height: 1.4;
         background: #f5f5f7;
         font-weight: 400;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        padding: 20px;
-        box-sizing: border-box;
       }
       
       .invoice {
@@ -711,73 +702,26 @@ export class InvoiceTemplate {
 
 
       
-      /* Print Optimization */
+      /* Ultra-minimal Print CSS */
       @media print {
         body {
-          background: white;
-          padding: 0;
           margin: 0;
-          font-size: 12px;
-          display: block;
+          padding: 0;
+          background: white;
         }
         
         .invoice {
-          box-shadow: none;
-          border-radius: 0;
+          width: 100%;
+          max-width: 100%;
           margin: 0;
           padding: 15mm;
-          width: 100%;
-          max-width: none;
-        }
-
-        
-        .top-header {
-          page-break-after: avoid;
+          box-shadow: none;
+          border: none;
+          border-radius: 0;
         }
         
-        .from-to-section {
-          page-break-after: avoid;
-        }
-        
-        .items-table {
-          page-break-inside: auto;
-          border: 1px solid #d2d2d7;
-        }
-        
-        .items-table thead {
-          display: table-header-group;
-        }
-        
-        .items-table tbody tr {
-          page-break-inside: avoid;
-          page-break-after: auto;
-        }
-        
-        .items-section {
-          page-break-inside: auto;
-        }
-        
-        .items-table thead th {
-          background: #f5f5f7 !important;
-          -webkit-print-color-adjust: exact;
-        }
-        
-        .summary-section {
-          page-break-inside: avoid;
-        }
-        
-        .summary-table {
-          background: #f5f5f7 !important;
-          -webkit-print-color-adjust: exact;
-        }
-        
-        .notes, .terms {
-          background: #f5f5f7 !important;
-          -webkit-print-color-adjust: exact;
-          page-break-inside: avoid;
-        }
-        
-        .notes-section {
+        /* Only essential rule - prevent row splitting */
+        tr {
           page-break-inside: avoid;
         }
       }
@@ -847,10 +791,14 @@ export class InvoiceTemplate {
     `;
   }
 
+  private getItemRowClass(index: number, totalItems: number): string {
+    // Completely natural - no forced page breaks at all
+    // Let the PDF engine decide based on actual content size
+    return '';
+  }
+
   private escapeHtml(text: string | undefined | null): string {
-    console.log("escapeHtml called with:", typeof text, text);
     if (!text) {
-      console.log("escapeHtml returning empty string for:", text);
       return "";
     }
 
@@ -864,17 +812,8 @@ export class InvoiceTemplate {
 
     try {
       const result = text.replace(/[&<>"']/g, (m) => map[m]);
-      console.log("escapeHtml successful for:", text, "->", result);
       return result;
     } catch (error) {
-      console.error(
-        "escapeHtml error for text:",
-        text,
-        "type:",
-        typeof text,
-        "error:",
-        error
-      );
       return "";
     }
   }

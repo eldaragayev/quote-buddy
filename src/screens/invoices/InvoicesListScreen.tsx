@@ -36,7 +36,7 @@ export const InvoicesListScreen = () => {
       const data = await InvoiceModel.getAll();
       setInvoices(data);
     } catch (error) {
-      console.error('Failed to load invoices:', error);
+      // Failed to load invoices
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,7 +122,7 @@ export const InvoicesListScreen = () => {
         loadInvoices();
       }
     } catch (error) {
-      console.error('Failed to update invoice status:', error);
+      // Failed to update invoice status
       Alert.alert('Error', 'Failed to update invoice status');
     }
   };
@@ -143,7 +143,6 @@ export const InvoicesListScreen = () => {
                 loadInvoices();
               }
             } catch (error) {
-              console.error('Failed to delete invoice:', error);
               Alert.alert('Error', 'Failed to delete invoice');
             }
           }

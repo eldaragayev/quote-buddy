@@ -62,7 +62,6 @@ export const ClientDetailScreen = () => {
         setTags(client.tags || '');
       }
     } catch (error) {
-      console.error('Failed to load client:', error);
       Alert.alert('Error', 'Failed to load client');
     }
   };
@@ -94,7 +93,6 @@ export const ClientDetailScreen = () => {
 
       navigation.navigate('ClientsList' as any);
     } catch (error) {
-      console.error('Failed to save client:', error);
       Alert.alert('Error', 'Failed to save client');
     } finally {
       setLoading(false);

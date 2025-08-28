@@ -3,15 +3,16 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { InvoiceStackNavigator } from './InvoiceStackNavigator';
 import { ClientStackNavigator } from './ClientStackNavigator';
-import { DashboardStackNavigator } from './DashboardStackNavigator';
-import { ToolsScreen } from '../screens/tools/ToolsScreen';
+// Hidden for now - will be released in future version
+// import { DashboardStackNavigator } from './DashboardStackNavigator';
+// import { ToolsScreen } from '../screens/tools/ToolsScreen';
 import { Colors, Typography } from '../styles/theme';
 
 export type TabParamList = {
   Invoices: undefined;
   Clients: undefined;
-  Tools: undefined;
-  Dashboard: undefined;
+  // Tools: undefined; // Hidden for now - will be released in future version
+  // Dashboard: undefined; // Hidden for now - will be released in future version
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -28,11 +29,13 @@ export const TabNavigator = () => {
             iconName = focused ? 'document-text' : 'document-text-outline';
           } else if (route.name === 'Clients') {
             iconName = focused ? 'people' : 'people-outline';
-          } else if (route.name === 'Tools') {
-            iconName = focused ? 'construct' : 'construct-outline';
-          } else if (route.name === 'Dashboard') {
-            iconName = focused ? 'stats-chart' : 'stats-chart-outline';
           }
+          // Hidden for now - will be released in future version
+          // else if (route.name === 'Tools') {
+          //   iconName = focused ? 'construct' : 'construct-outline';
+          // } else if (route.name === 'Dashboard') {
+          //   iconName = focused ? 'stats-chart' : 'stats-chart-outline';
+          // }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -51,8 +54,9 @@ export const TabNavigator = () => {
     >
       <Tab.Screen name="Invoices" component={InvoiceStackNavigator} />
       <Tab.Screen name="Clients" component={ClientStackNavigator} />
-      <Tab.Screen name="Tools" component={ToolsScreen} />
-      <Tab.Screen name="Dashboard" component={DashboardStackNavigator} />
+      {/* Hidden for now - will be released in future version */}
+      {/* <Tab.Screen name="Tools" component={ToolsScreen} /> */}
+      {/* <Tab.Screen name="Dashboard" component={DashboardStackNavigator} /> */}
     </Tab.Navigator>
   );
 };

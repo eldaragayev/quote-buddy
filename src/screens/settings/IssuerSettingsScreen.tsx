@@ -38,7 +38,7 @@ export const IssuerSettingsScreen = () => {
       const data = await IssuerModel.getAll();
       setIssuers(data);
     } catch (error) {
-      console.error('Failed to load issuers:', error);
+      // Failed to load issuers
     } finally {
       setLoading(false);
     }

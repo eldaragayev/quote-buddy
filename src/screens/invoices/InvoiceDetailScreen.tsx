@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute, useFocusEffect, RouteProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -100,6 +100,26 @@ export const InvoiceDetailScreen = () => {
     loadInitialData();
   }, []);
 
+  // Reload client data when screen comes back into focus (after editing client)
+  useFocusEffect(
+    useCallback(() => {
+      if (client && client.id) {
+        const reloadClientData = async () => {
+          try {
+            const { ClientModel } = await import("../../models/ClientModel");
+            const updatedClient = await ClientModel.getById(client.id!);
+            if (updatedClient) {
+              setClient(updatedClient);
+            }
+          } catch (error) {
+            // Failed to reload client data - not critical
+          }
+        };
+        reloadClientData();
+      }
+    }, [client?.id])
+  );
+
   const loadInitialData = async () => {
     try {
       const defaultIssuer = await IssuerModel.getDefault();
@@ -127,7 +147,7 @@ export const InvoiceDetailScreen = () => {
         await loadInvoice(invoiceId);
       }
     } catch (error) {
-      console.error("Failed to load initial data:", error);
+      // Failed to load initial data
     }
   };
 
@@ -177,7 +197,6 @@ export const InvoiceDetailScreen = () => {
         }
       }
     } catch (error) {
-      console.error("Failed to load invoice:", error);
       Alert.alert("Error", "Failed to load invoice");
     }
   };
@@ -264,7 +283,6 @@ export const InvoiceDetailScreen = () => {
 
       // Don't navigate away - stay on current screen
     } catch (error) {
-      console.error("Failed to save invoice:", error);
       Alert.alert("Error", "Failed to save invoice");
       setSaveButtonState("normal");
     } finally {
@@ -467,7 +485,6 @@ export const InvoiceDetailScreen = () => {
         invoiceNumber: invoiceNumber,
       });
     } catch (error) {
-      console.error("PDF generation failed:", error);
 
       let errorMessage = "Failed to generate PDF";
       if (error instanceof Error) {
@@ -543,7 +560,6 @@ export const InvoiceDetailScreen = () => {
     try {
       await pdfService.shareInvoicePDF(pdfUri, invoiceNumber);
     } catch (error) {
-      console.error("Share failed:", error);
       Alert.alert("Error", "Failed to share PDF");
     }
   };
@@ -557,7 +573,6 @@ export const InvoiceDetailScreen = () => {
         Alert.alert("Success", "PDF saved to your device successfully");
       }
     } catch (error) {
-      console.error("Save failed:", error);
       Alert.alert("Error", "Failed to save PDF to device");
     }
   };
@@ -1013,6 +1028,21 @@ export const InvoiceDetailScreen = () => {
           onSelect={(selectedClient) => {
             setClient(selectedClient);
             setShowClientSelector(false);
+          }}
+          onEdit={(clientToEdit) => {
+            setShowClientSelector(false);
+            // Navigate to Clients tab, then to ClientDetail screen
+            const navigationState = (navigation as any).getState();
+            const rootNavigation = (navigation as any).getParent();
+            
+            if (rootNavigation) {
+              rootNavigation.navigate('Clients', {
+                screen: 'ClientDetail',
+                params: { clientId: clientToEdit.id }
+              });
+            } else {
+              Alert.alert('Error', 'Unable to navigate to client editor');
+            }
           }}
           selectedClient={client}
         />

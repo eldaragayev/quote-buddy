@@ -52,7 +52,7 @@ export const InvoicePreviewScreen = () => {
       try {
         await loadPDFPreview();
       } catch (error) {
-        console.error("Failed to load PDF preview in useEffect:", error);
+        // Failed to load PDF preview
       }
     };
 
@@ -62,14 +62,11 @@ export const InvoicePreviewScreen = () => {
   const loadPDFPreview = async () => {
     setIsLoadingPreview(true);
     try {
-      console.log("Generating PDF preview...");
       const pdfDataUri = await pdfService.generateInvoicePDFPreview(
         invoiceData
       );
-      console.log("PDF preview generated successfully");
       setPdfUri(pdfDataUri);
     } catch (error) {
-      console.error("PDF preview generation failed:", error);
       Alert.alert(
         "PDF Preview Failed",
         `Unable to generate PDF preview: ${
@@ -85,12 +82,9 @@ export const InvoicePreviewScreen = () => {
     setIsGeneratingPDF(true);
     try {
       // Generate a file-based PDF for sharing (not base64)
-      console.log("Generating PDF file for sharing...");
       const pdfFileUri = await pdfService.generateInvoicePDF(invoiceData);
-      console.log("PDF file generated for sharing:", pdfFileUri);
       await pdfService.shareInvoicePDF(pdfFileUri, invoiceNumber);
     } catch (error) {
-      console.error("Share failed:", error);
       Alert.alert("Error", "Failed to share PDF");
     } finally {
       setIsGeneratingPDF(false);
@@ -183,17 +177,14 @@ export const InvoicePreviewScreen = () => {
                 allowUniversalAccessFromFileURLs={true}
                 mixedContentMode="compatibility"
                 onError={(error) => {
-                  console.error("PDF WebView error:", error);
                   Alert.alert(
                     "PDF Preview Error",
                     "Failed to display PDF preview. The content may be too large."
                   );
                 }}
-                onLoadStart={() => console.log("PDF WebView loading started")}
-                onLoadEnd={() => console.log("PDF WebView loading completed")}
-                onMessage={(event) =>
-                  console.log("WebView message:", event.nativeEvent.data)
-                }
+                onLoadStart={() => {}}
+                onLoadEnd={() => {}}
+                onMessage={(event) => {}}
               />
             </View>
           ) : (

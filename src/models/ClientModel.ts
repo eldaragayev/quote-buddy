@@ -3,6 +3,11 @@ import { Client, ClientWithBalance } from '../types/database';
 
 export class ClientModel {
   static async create(client: Omit<Client, 'id'>): Promise<number> {
+    // Validate required fields
+    if (!client.name || client.name.trim().length === 0) {
+      throw new Error('Client name is required');
+    }
+    
     const result = await db.runAsync(
       `INSERT INTO clients (
         name, company_name, contact_name, email, phone, 
@@ -11,14 +16,14 @@ export class ClientModel {
         default_discount_type, default_discount_value
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        client.name,
-        client.company_name || null,
-        client.contact_name || null,
-        client.email || null,
-        client.phone || null,
-        client.billing_address || null,
-        client.shipping_address || null,
-        client.tags || null,
+        client.name.trim(),
+        client.company_name?.trim() || null,
+        client.contact_name?.trim() || null,
+        client.email?.trim() || null,
+        client.phone?.trim() || null,
+        client.billing_address?.trim() || null,
+        client.shipping_address?.trim() || null,
+        client.tags?.trim() || null,
         client.is_archived || 0,
         client.default_currency_code || null,
         client.default_due_option || null,
@@ -72,15 +77,24 @@ export class ClientModel {
   }
 
   static async update(id: number, client: Partial<Client>): Promise<void> {
-    const fields = Object.keys(client)
-      .filter(key => key !== 'id')
-      .map(key => `${key} = ?`)
-      .join(', ');
+    // Define allowed fields to prevent SQL injection
+    const allowedFields = [
+      'name', 'company_name', 'contact_name', 'email', 'phone', 
+      'billing_address', 'shipping_address', 'tags', 'is_archived',
+      'default_currency_code', 'default_due_option', 'default_tax_id',
+      'default_discount_type', 'default_discount_value'
+    ];
     
-    const values = Object.keys(client)
-      .filter(key => key !== 'id')
-      .map(key => (client as any)[key]);
+    const validKeys = Object.keys(client).filter(key => 
+      key !== 'id' && allowedFields.includes(key)
+    );
     
+    if (validKeys.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+    
+    const fields = validKeys.map(key => `${key} = ?`).join(', ');
+    const values = validKeys.map(key => (client as any)[key]);
     values.push(id);
     
     await db.runAsync(

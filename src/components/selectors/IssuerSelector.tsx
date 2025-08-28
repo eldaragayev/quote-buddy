@@ -61,7 +61,7 @@ export const IssuerSelector: React.FC<IssuerSelectorProps> = ({
       const data = await IssuerModel.getAll();
       setIssuers(data);
     } catch (error) {
-      console.error('Failed to load issuers:', error);
+      
     }
   };
 
@@ -101,7 +101,7 @@ export const IssuerSelector: React.FC<IssuerSelectorProps> = ({
       await loadIssuers();
       resetForm();
     } catch (error) {
-      console.error('Failed to save issuer:', error);
+      
       Alert.alert('Error', 'Failed to save issuer');
     }
   };

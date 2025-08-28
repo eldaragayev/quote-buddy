@@ -110,7 +110,7 @@ export const DashboardScreen = () => {
       
       setRecentInvoices(recent);
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      // Failed to load dashboard data
     } finally {
       setLoading(false);
       setRefreshing(false);

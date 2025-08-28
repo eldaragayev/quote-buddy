@@ -181,7 +181,7 @@ const applyMigrations = (fromVersion: number) => {
       `);
     } catch (error) {
       // Column might already exist, ignore error
-      console.log('is_default column might already exist in taxes table');
+      // is_default column might already exist in taxes table
     }
     
     try {
@@ -191,7 +191,7 @@ const applyMigrations = (fromVersion: number) => {
       `);
     } catch (error) {
       // Column might already exist, ignore error
-      console.log('default_tax_id column might already exist in settings table');
+      // default_tax_id column might already exist in settings table
     }
   }
 };
@@ -231,10 +231,10 @@ export const initializeDatabase = () => {
     // Run migrations
     checkAndMigrate();
     
-    console.log('Database schema initialized successfully');
+    // Database schema initialized successfully
     return true;
   } catch (error) {
-    console.error('Failed to initialize database:', error);
+    // Failed to initialize database
     throw error;
   }
 };

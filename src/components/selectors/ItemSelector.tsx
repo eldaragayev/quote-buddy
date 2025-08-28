@@ -63,7 +63,7 @@ export const ItemSelector: React.FC<ItemSelectorProps> = ({
       setItems(data);
       setFilteredItems(data);
     } catch (error) {
-      console.error('Failed to load items:', error);
+      
     }
   };
 
@@ -99,7 +99,7 @@ export const ItemSelector: React.FC<ItemSelectorProps> = ({
         handleClose();
       }
     } catch (error) {
-      console.error('Failed to create item:', error);
+      
       Alert.alert('Error', 'Failed to create item');
     }
   };

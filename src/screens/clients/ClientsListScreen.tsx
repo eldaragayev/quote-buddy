@@ -40,7 +40,7 @@ export const ClientsListScreen = () => {
       const data = await ClientModel.getAll();
       setClients(data);
     } catch (error) {
-      console.error('Failed to load clients:', error);
+      // Failed to load clients
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -92,7 +92,6 @@ export const ClientsListScreen = () => {
                 loadClients();
               }
             } catch (error) {
-              console.error('Failed to delete client:', error);
               Alert.alert('Error', 'Failed to delete client');
             }
           }

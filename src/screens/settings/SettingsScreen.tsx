@@ -48,7 +48,7 @@ export const SettingsScreen = () => {
       const issuer = await IssuerModel.getDefault();
       setDefaultIssuer(issuer);
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      // Failed to load settings
     }
   };
 
@@ -62,7 +62,6 @@ export const SettingsScreen = () => {
       // Reload settings to confirm the change was saved
       await loadSettings();
     } catch (error) {
-      console.error('Failed to update currency:', error);
       Alert.alert('Error', 'Failed to update default currency');
     }
   };

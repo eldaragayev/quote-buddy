@@ -40,7 +40,7 @@ export const TaxSelector: React.FC<TaxSelectorProps> = ({
       const data = await TaxModel.getAll();
       setTaxes(data);
     } catch (error) {
-      console.error('Failed to load taxes:', error);
+      
     } finally {
       setLoading(false);
     }

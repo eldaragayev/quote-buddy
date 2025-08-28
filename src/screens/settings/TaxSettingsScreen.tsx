@@ -34,7 +34,7 @@ export const TaxSettingsScreen = () => {
       const data = await TaxModel.getAll();
       setTaxes(data);
     } catch (error) {
-      console.error('Failed to load taxes:', error);
+      // Failed to load taxes
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,6 @@ export const TaxSettingsScreen = () => {
       setShowAddModal(false);
       loadTaxes();
     } catch (error) {
-      console.error('Failed to save tax:', error);
       Alert.alert('Error', 'Failed to save tax');
     }
   };

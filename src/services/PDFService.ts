@@ -27,28 +27,25 @@ export class PDFService {
     options: PDFGenerationOptions
   ): Promise<string> {
     try {
-      console.log("PDFService: Starting PDF preview generation");
 
       // Validate required data
       this.validateOptions(options);
 
       // Generate HTML from template
       const html = await this.template.generate(options);
-      console.log("PDFService: HTML generated, length:", html.length);
 
-      // Generate PDF file
+      // Simple PDF generation - let CSS handle everything
       const { uri, base64 } = await Print.printToFileAsync({
         html,
         base64: true,
       });
 
-      console.log("PDFService: PDF file generated:", uri);
 
       // Clean up temp file
       try {
         await FileSystem.deleteAsync(uri, { idempotent: true });
       } catch (cleanupError) {
-        console.warn("Failed to cleanup temp file:", cleanupError);
+        // Failed to cleanup temp file
       }
 
       // Return base64 data URI for WebView
@@ -61,7 +58,6 @@ export class PDFService {
 
       return `data:application/pdf;base64,${base64}`;
     } catch (error) {
-      console.error("PDF preview generation failed:", error);
 
       if (error instanceof PDFError) {
         throw error;
@@ -87,7 +83,7 @@ export class PDFService {
       // Generate HTML from template
       const html = await this.template.generate(options);
 
-      // Convert HTML to PDF - using basic call with defaults
+      // Simple PDF generation - let CSS handle everything
       const { uri } = await Print.printToFileAsync({
         html,
       });
@@ -103,7 +99,6 @@ export class PDFService {
 
       return newUri;
     } catch (error) {
-      console.error("PDF generation failed:", error);
 
       if (error instanceof PDFError) {
         throw error;
@@ -136,7 +131,6 @@ export class PDFService {
         UTI: "com.adobe.pdf",
       });
     } catch (error) {
-      console.error("Sharing failed:", error);
       throw new PDFError(
         PDFErrorType.SHARING_UNAVAILABLE,
         `Failed to share PDF: ${
@@ -162,7 +156,6 @@ export class PDFService {
         return true;
       }
     } catch (error) {
-      console.error("Save to disk failed:", error);
       throw new PDFError(
         PDFErrorType.STORAGE_PERMISSION_DENIED,
         `Failed to save PDF to device: ${
@@ -202,7 +195,6 @@ export class PDFService {
         }
       }
     } catch (error) {
-      console.warn("Cleanup failed:", error);
       // Don't throw error for cleanup failures
     }
   }
@@ -213,9 +205,7 @@ export class PDFService {
   async cleanupPreviewFile(uri: string): Promise<void> {
     try {
       await FileSystem.deleteAsync(uri, { idempotent: true });
-      console.log("Preview file cleaned up:", uri);
     } catch (error) {
-      console.warn("Failed to cleanup preview file:", error);
       // Don't throw error for cleanup failures
     }
   }
@@ -284,7 +274,6 @@ export class PDFService {
         );
       }
     } catch (error) {
-      console.error("Android save failed:", error);
       throw error;
     }
   }

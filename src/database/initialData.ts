@@ -11,7 +11,7 @@ export const initializeDefaultData = async () => {
     // 1. Check and create default settings
     const existingSettings = await SettingsModel.get();
     if (!existingSettings) {
-      console.log('Creating default settings...');
+      // Creating default settings
       await SettingsModel.createOrUpdate({
         default_currency_code: 'USD'
       });
@@ -20,7 +20,7 @@ export const initializeDefaultData = async () => {
     // 2. Check and create default issuer
     const existingIssuers = await IssuerModel.getAll();
     if (existingIssuers.length === 0) {
-      console.log('Creating default issuer...');
+      // Creating default issuer
       await IssuerModel.create({
         company_name: 'My Company',
         contact_name: 'John Doe',
@@ -33,7 +33,7 @@ export const initializeDefaultData = async () => {
       // Ensure at least one issuer is marked as default
       const defaultIssuer = await IssuerModel.getDefault();
       if (!defaultIssuer && existingIssuers.length > 0) {
-        console.log('Setting first issuer as default...');
+        // Setting first issuer as default
         const firstIssuer = existingIssuers[0];
         if (firstIssuer.id) {
           await IssuerModel.setDefault(firstIssuer.id);
@@ -44,7 +44,7 @@ export const initializeDefaultData = async () => {
     // 3. Create some common tax rates if none exist
     const existingTaxes = await TaxModel.getAll();
     if (existingTaxes.length === 0) {
-      console.log('Creating default tax rates...');
+      // Creating default tax rates
       
       // Add common tax rates
       const commonTaxes = [
@@ -59,9 +59,9 @@ export const initializeDefaultData = async () => {
       }
     }
 
-    console.log('Default data initialized successfully');
+    // Default data initialized successfully
   } catch (error) {
-    console.error('Failed to initialize default data:', error);
+    // Failed to initialize default data
     throw error;
   }
 };
@@ -78,7 +78,7 @@ export const isFirstRun = async (): Promise<boolean> => {
     // If no settings and no issuers, it's a first run
     return !settings && issuers.length === 0;
   } catch (error) {
-    console.error('Failed to check first run status:', error);
+    // Failed to check first run status
     return true; // Assume first run on error to ensure initialization
   }
 };
